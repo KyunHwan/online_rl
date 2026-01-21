@@ -1,0 +1,16 @@
+# Ignore git history (This is usually the biggest culprit)
+.git/
+
+# Ignore large datasets and artifacts
+*.npy
+*.pack
+*.gif
+
+# Ignore specific large directories visible in your logs
+trainer/policy_constructor/model_constructor/blocks/experiments/backbones/vision/externals/depth_anything_3/assets/
+trainer/policy_constructor/model_constructor/blocks/experiments/backbones/vision/externals/depth_anything_3/da3_streaming/loop_utils/salad/datasets/
+
+# Ignore virtual environments if not already ignored
+.venv/
+
+*/__pycache__
