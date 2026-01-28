@@ -21,6 +21,7 @@ uv pip install accelerate
 apt-get update && apt-get install -y ffmpeg libavcodec-dev libavdevice-dev libavfilter-dev libavformat-dev libavutil-dev libswscale-dev libswresample-dev
 uv pip install torchcodec
 uv pip install av
+uv pip install PySide6
 
 
 

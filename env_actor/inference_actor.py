@@ -1,6 +1,7 @@
 import ray
 import torch
 
+
 @ray.remote(num_gpus=1)
 class InferenceActor:
     def __init__(self, policy_state_manager_handle, inference_config_path, shared_memory_names):

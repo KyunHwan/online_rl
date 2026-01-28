@@ -4,11 +4,12 @@ import numpy as np
 import torch
 
 
-
-
 @ray.remote
 class ControllerActor:
-    def __init__(self, episode_queue_handle, inference_config_path, shared_memory_names):
+    def __init__(self, 
+                 episode_queue_handle, 
+                 inference_config_path, 
+                 shared_memory_names):
         self.episode_queue_handle = episode_queue_handle
         self.inference_config_path = inference_config_path
     
