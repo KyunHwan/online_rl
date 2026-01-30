@@ -1,0 +1,32 @@
+class ControllerInterface:
+    def __init__(self, robot_config, robot):
+        self.controller_bridge = None
+        if robot == "igris_b":
+            import igris_b.controller_bridge as ControllerBridge
+        elif robot == "igris_c":
+            import igris_c.controller_bridge as ControllerBridge
+        self.controller_bridge = ControllerBridge(robot_config)
+
+    @property
+    def DT(self):
+        return 1.0 / self.controller_bridge.DT
+    
+    @property
+    def policy_update_period(self):
+        return self.controller_bridge.policy_update_period
+
+    def recorder_rate_controller(self):
+        return self.controller_bridge.recorder_rate_controller()
+
+    def start_state_readers(self):
+        self.controller_bridge.start_state_readers()
+
+    def init_robot_position(self):
+        self.controller_bridge.init_robot_state()
+
+    def read_state(self,) -> dict:
+        return self.controller_bridge.read_state()
+    
+    def publish_action(self, action, prev_joint):
+        self.controller_bridge.publish_action(action, prev_joint)
+    

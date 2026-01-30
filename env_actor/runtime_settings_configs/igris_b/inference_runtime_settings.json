@@ -1,0 +1,95 @@
+{
+  "robot_id": "packy",
+  "HZ": 20,
+  "max_delta_deg": 0.01,
+  "policy_update_period": 40,
+  "mono_image_resize": {
+    "width": 320,
+    "height": 240
+  },
+  "camera_names": [
+    "head",
+    "left",
+    "right"
+  ],
+  "proprio_state_dim": 48,
+  "action_dim": 24,
+  "action_chunk_size": 40,
+  "proprio_history_size": 40,
+  "num_img_obs": 1,
+  "img_obs_every": 1,
+  "norm_stats_file_path": "",
+
+  "topics": {
+    "finger": {
+      "topic": "/igris_b/packy/finger_state",
+      "msg_type": "Float32MultiArray",
+      "fields": {
+        "/observation/hand_joint_pos/left": {
+          "slice": [
+            6,
+            12
+          ]
+        },
+        "/observation/hand_joint_pos/right": {
+          "slice": [
+            0,
+            6
+          ]
+        }
+      }
+    },
+    "finger_current": {
+      "topic": "/igris_b/packy/finger_current",
+      "msg_type": "Float32MultiArray",
+      "fields": {
+        "/observation/hand_joint_cur/left": {
+          "slice": [
+            6,
+            12
+          ]
+        },
+        "/observation/hand_joint_cur/right": {
+          "slice": [
+            0,
+            6
+          ]
+        }
+      }
+    },
+    "joints": {
+      "topic": "/igris_b/packy/joint_states",
+      "msg_type": "JointState",
+      "fields": {
+        "/observation/joint_pos/left": {
+          "slice": [
+            6,
+            12
+          ],
+          "attr": "position"
+        },
+        "/observation/joint_pos/right": {
+          "slice": [
+            0,
+            6
+          ],
+          "attr": "position"
+        },
+        "/observation/joint_cur/left": {
+          "slice": [
+            6,
+            12
+          ],
+          "attr": "effort"
+        },
+        "/observation/joint_cur/right": {
+          "slice": [
+            0,
+            6
+          ],
+          "attr": "effort"
+        }
+      }
+    }
+  }
+}

@@ -9,8 +9,6 @@ from ray.util.queue import Queue as RayQueue
 from ray.train.torch import TorchTrainer
 from ray.train import ScalingConfig
 
-from env_actor.control_actor import ControllerActor
-from env_actor.inference_actor import InferenceActor
 from data_bridge.replay_buffer import ReplayBufferActor
 from data_bridge.policy_state_manager import PolicyStateManagerActor
 
@@ -41,6 +39,7 @@ def run_training(train_config_path: str):
 
 
 
+
 def start_online_rl(train_config_path, inference_config_path, human_reward_labeler):
     # Initialize Ray
     if ray.is_initialized():
@@ -56,18 +55,27 @@ def start_online_rl(train_config_path, inference_config_path, human_reward_label
     replay_buffer = ReplayBufferActor.options(name="replay_buffer").remote()
 
     # Environment Actor
-    # Create shared memory 
-    shared_memory_names = []
-    inference_engine = InferenceActor.remote(policy_state_manager_handle=policy_state_manager,
-                                             inference_config_path=inference_config_path,
-                                             shared_memory_names=shared_memory_names)
-    controller = ControllerActor.remote(episode_queue_handle=episode_queue,
-                                        inference_config_path=inference_config_path,
-                                        shared_memory_names=shared_memory_names)
-    
-    # Start the environment actor to collect data
-    inference_engine.start.remote()
-    controller.start.remote()
+    # RTC
+    if inference_algorithm == 'rtc':
+        from env_actor.auto.inference_algorithms.rtc.control_actor import ControllerActor
+        from env_actor.auto.inference_algorithms.rtc.inference_actor import InferenceActor
+        shared_memory_names = []
+        inference_engine = InferenceActor.remote(policy_state_manager_handle=policy_state_manager,
+                                                inference_config_path=inference_config_path,
+                                                shared_memory_names=shared_memory_names)
+        controller = ControllerActor.remote(episode_queue_handle=episode_queue,
+                                            inference_config_path=inference_config_path,
+                                            shared_memory_names=shared_memory_names)
+        
+        # Start the environment actor to collect data
+        inference_engine.start.remote()
+        controller.start.remote()
+    else:
+        from env_actor.auto.inference_algorithms.sequential.sequential_actor import SequentialActor
+        env_actor = SequentialActor.remote(policy_state_manager_handle=policy_state_manager,
+                                           episode_queue_handle=episode_queue,
+                                           inference_config_path=inference_config_path)
+        env_actor.start.remote()
 
     train_ref = run_training.remote(train_config_path)
 
@@ -99,7 +107,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Parse for train config and inference_config .yaml files")
     parser.add_argument("--train_config", help="absolute path to the train config .yaml file.", required=True)
     parser.add_argument("--inference_config", help="absolute path to the inference config .yaml file.", required=True)
-    parser.add_argument("--human_reward_labeler", action="store_true", help="whether reward labeling is done by a human", default=True)
+    parser.add_argument("--human_reward_labeler", action="store_true", help="whether reward labeling is done by a human")
     args = parser.parse_args()
     if args.train_config:
         args.train_config = os.path.abspath(args.train_config)
