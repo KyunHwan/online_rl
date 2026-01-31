@@ -7,6 +7,7 @@ Simple orchestration: Controller -> DataManager -> Policy -> DataManager -> Cont
 
 import time
 import torch
+from tensordict import TensorDict
 import ray
 
 from env_actor.auto.io_interface.controller_interface import ControllerInterface
@@ -77,9 +78,12 @@ class SequentialActor:
                         sd_cpu = current_weights[model_name]   # <-- critical fix
                         missing, unexpected = load_state_dict_cpu_into_module(model, sd_cpu, strict=True)
 
-                # TODO: Serve the train data buffer
-                self.data_manager_interface.serve_train_data_buffer()
-            
+                # Serve the train data buffer
+                episodic_data_ref = ray.put(TensorDict.stack(self.data_manager_interface.serve_train_data_buffer(),
+                                                             dim=0))
+                self.episode_queue_handle.put(episodic_data_ref,
+                                              block=True)
+                
             self.data_manager_interface.init_train_data_buffer()
 
             print("Initializing robot position...")
@@ -171,4 +175,31 @@ class SequentialActor:
                 new_weights = current_weights # Zero-copy fetch
                 print("weights updated: ", new_weights.keys())
                 #self.policy.load_state_dict(new_weights)
+
+
+
+@ray.remote
+class ControllerActor:
+    def __init__(self, 
+                 episode_queue_handle, 
+                 inference_config_path, 
+                 shared_memory_names):
+        self.episode_queue_handle = episode_queue_handle
+        self.inference_config_path = inference_config_path
+    
+    def start(self,):
+        episodic_data = []
+        while True:
+            if len(episodic_data) != 0:
+                # wait until there's room to put the data in the queue
+                episodic_data_ref = ray.put(TensorDict.stack(episodic_data, dim=0))
+                self.episode_queue_handle.put(episodic_data_ref,
+                                              block=True)
+            episodic_data = []
+            for step in range(900):
+                episodic_data.append(TensorDict({
+                    'reward': torch.randn(40, 24),
+                    'action': torch.ones(40,24),
+                    'state': torch.zeros(40, 24)
+                }, batch_size=[]))
 """
