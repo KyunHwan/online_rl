@@ -78,7 +78,7 @@ class SequentialActor:
                         sd_cpu = current_weights[model_name]   # <-- critical fix
                         missing, unexpected = load_state_dict_cpu_into_module(model, sd_cpu, strict=True)
 
-                # Serve the train data buffer
+                # TODO: Serve the train data buffer
                 episodic_data_ref = ray.put(TensorDict.stack(self.data_manager_interface.serve_train_data_buffer(),
                                                              dim=0))
                 self.episode_queue_handle.put(episodic_data_ref,
