@@ -1,3 +1,143 @@
+"""
+Sequential inference engine for robot manipulation.
+
+Orchestrates the main control loop for sequential inference.
+Simple orchestration: Controller -> DataManager -> Policy -> DataManager -> Controller
+"""
+
+import time
+import torch
+import ray
+
+from env_actor.auto.io_interface.controller_interface import ControllerInterface
+from env_actor.auto.data_manager.data_manager_interface import DataManagerInterface
+from env_actor.policy.loader import build_policy
+
+@ray.remote(num_gpus=1)
+class SequentialActor:
+    """
+    Robot-agnostic sequential inference control loop.
+
+    Simple orchestration:
+    1. Controller reads raw state
+    2. DataManager processes and normalizes
+    3. Policy runs forward pass
+    4. DataManager denormalizes action
+    5. Controller publishes action
+
+    Responsibilities:
+    - Control loop timing
+    - Policy update scheduling
+    - Orchestration (no processing logic)
+    """
+
+    def __init__(
+        self,
+        robot_config,
+        robot,
+        policy_yaml_path,
+        policy_state_manager_handle,
+        episode_queue_handle,
+    ):
+        """
+        Initialize sequential inference engine.
+
+        Args:
+            robot_config: dict read from .json or .yaml file 
+                          for igris_b, it's inference_runtime_settings.json in runtime_settings_configs folder
+            robot: str ("igris_b" or "igris_c")
+            policy_yaml_path: str file path to policy yaml file.
+        """
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.policy = build_policy(policy_yaml_path=policy_yaml_path, map_location=self.device)
+        self.controller_interface = ControllerInterface(robot_config=robot_config, robot=robot)
+        self.data_manager_interface = DataManagerInterface(robot_config=robot_config, robot=robot)
+
+    def start(self) -> None:
+        """
+        Run the main sequential inference control loop.
+
+        Simple orchestration - all processing delegated to DataManager.
+        """
+        print("Starting sequential inference engine...")
+
+        # 1. Initialize robot position
+        print("Initializing robot position...")
+        prev_joint = self.controller_interface.init_robot_position()
+        self.data_manager_interface.update_prev_joint(prev_joint)
+
+        # 2. Start state readers (cameras and proprioception)
+        print("Starting state readers...")
+        self.controller_interface.start_state_readers()
+
+        # 3. Read initial state and bootstrap observation history
+        print("Bootstrapping observation history...")
+        initial_state = self.controller_interface.read_state()
+
+        # Initialize history buffers in data manager
+        self.data_manager_interface.init_inference_obs_state_buffer(initial_state)
+
+        # 4. Initialize timing
+        rate_controller = self.controller_interface.recorder_rate_controller()
+        DT = self.controller_interface.DT
+        start_time = time.time()
+        next_t = time.perf_counter()
+
+        # 5. Main control loop
+        for t in range(9000):
+            # Rate-limit to maintain target HZ
+            rate_controller.sleep()
+
+            # a. Read latest observations (raw from robot)
+            obs_data = self.controller_interface.read_state()
+
+            if 'proprio' not in obs_data:
+                print(f"Warning: No proprio data at step {t}, skipping...")
+                continue
+
+            # b. Update observation history in data manager
+            self.data_manager_interface.update_state_history(obs_data)
+
+            # c. Conditionally run policy
+            if (t % self.controller_interface.policy_update_period) == 0 or t == 0:
+                # Get normalized observations from data manager
+                normalized_obs = self.data_manager_interface.serve_normalized_obs_state(self.device)
+
+                # Generate noise in data manager
+                noise = self.data_manager_interface.generate_noise(self.device)
+
+                # Add noise to observation dict for policy
+                normalized_obs['noise'] = noise
+
+                # Run policy forward pass (just neural network)
+
+                policy_output = self.policy.predict(normalized_obs)
+
+                # Buffer and denormalize action in data manager
+                self.data_manager_interface.buffer_action_chunk(policy_output, t, self.device)
+
+            # d. Get current action from data manager (already denormalized)
+            action = self.data_manager_interface.get_current_action(t)
+
+            # e. Publish action to robot (includes slew-rate limiting)
+            smoothed_joint = self.controller_interface.publish_action(
+                action,
+                self.data_manager_interface.prev_joint
+            )
+
+            # f. Update previous joint state in data manager
+            self.data_manager_interface.update_prev_joint(smoothed_joint)
+
+            # g. Maintain precise loop timing
+            next_t += DT
+            sleep_time = next_t - time.perf_counter()
+            if sleep_time > 0.0:
+                time.sleep(sleep_time)
+
+        print("Sequential inference completed successfully!")
+
+
+"""
 import ray
 import torch
 
@@ -20,3 +160,4 @@ class SequentialActor:
                 new_weights = current_weights # Zero-copy fetch
                 print("weights updated: ", new_weights.keys())
                 #self.policy.load_state_dict(new_weights)
+"""

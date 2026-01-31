@@ -22,11 +22,11 @@ class ControllerInterface:
         self.controller_bridge.start_state_readers()
 
     def init_robot_position(self):
-        self.controller_bridge.init_robot_state()
+        return self.controller_bridge.init_robot_position()
 
     def read_state(self,) -> dict:
         return self.controller_bridge.read_state()
-    
+
     def publish_action(self, action, prev_joint):
-        self.controller_bridge.publish_action(action, prev_joint)
+        return self.controller_bridge.publish_action(action, prev_joint)
     

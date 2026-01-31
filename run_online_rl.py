@@ -40,7 +40,7 @@ def run_training(train_config_path: str):
 
 
 
-def start_online_rl(train_config_path, inference_config_path, human_reward_labeler):
+def start_online_rl(train_config_path, inference_runtime_config, policy_yaml_path, robot, human_reward_labeler):
     # Initialize Ray
     if ray.is_initialized():
         ray.shutdown()
@@ -57,24 +57,30 @@ def start_online_rl(train_config_path, inference_config_path, human_reward_label
     # Environment Actor
     # RTC
     if inference_algorithm == 'rtc':
-        from env_actor.auto.inference_algorithms.rtc.control_actor import ControllerActor
-        from env_actor.auto.inference_algorithms.rtc.inference_actor import InferenceActor
+        from env_actor.auto.inference_algorithms.rtc.control_actor import ControllerActor as RTCControllerActor
+        from env_actor.auto.inference_algorithms.rtc.inference_actor import InferenceActor as RTCInferenceActor
         shared_memory_names = []
-        inference_engine = InferenceActor.remote(policy_state_manager_handle=policy_state_manager,
-                                                inference_config_path=inference_config_path,
+        inference_engine = RTCInferenceActor.remote(robot_config=inference_runtime_config,
+                                                robot=robot,
+                                                policy_yaml_path=policy_yaml_path,
+                                                policy_state_manager_handle=policy_state_manager,
                                                 shared_memory_names=shared_memory_names)
-        controller = ControllerActor.remote(episode_queue_handle=episode_queue,
-                                            inference_config_path=inference_config_path,
+        controller = RTCControllerActor.remote(robot_config=inference_runtime_config,
+                                            robot=robot,
+                                            policy_yaml_path=policy_yaml_path,
+                                            episode_queue_handle=episode_queue,
                                             shared_memory_names=shared_memory_names)
         
         # Start the environment actor to collect data
         inference_engine.start.remote()
         controller.start.remote()
     else:
-        from env_actor.auto.inference_algorithms.sequential.sequential_actor import SequentialActor
-        env_actor = SequentialActor.remote(policy_state_manager_handle=policy_state_manager,
-                                           episode_queue_handle=episode_queue,
-                                           inference_config_path=inference_config_path)
+        from online_rl.env_actor.auto.inference_algorithms.sequential.sequential_actor import SequentialActor
+        env_actor = SequentialActor.remote(robot_config=inference_runtime_config,
+                                           robot=robot,
+                                           policy_yaml_path=policy_yaml_path,
+                                           policy_state_manager_handle=policy_state_manager,
+                                           episode_queue_handle=episode_queue)
         env_actor.start.remote()
 
     train_ref = run_training.remote(train_config_path)
@@ -85,9 +91,9 @@ def start_online_rl(train_config_path, inference_config_path, human_reward_label
     else:
         from data_labeler.human_in_the_loop.hil_reward_labeler import ManualRewardLabelerActor as RewardLabeler
     reward_labeler = RewardLabeler.remote(episode_queue_handle=episode_queue, 
-                                            replay_buffer_actor=replay_buffer,
-                                            img_frame_key='cam_head',
-                                            reward_key='reward')
+                                          replay_buffer_actor=replay_buffer,
+                                          img_frame_key='cam_head',
+                                          reward_key='reward')
     _ = reward_labeler.start.remote()
     _ = ray.get(train_ref)
 
@@ -106,10 +112,12 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="Parse for train config and inference_config .yaml files")
     parser.add_argument("--train_config", help="absolute path to the train config .yaml file.", required=True)
-    parser.add_argument("--inference_config", help="absolute path to the inference config .yaml file.", required=True)
+    parser.add_argument("--inference_runtime_config", help="absolute path to the inference runtime config file.", required=True)
+    parser.add_argument("--policy_yaml", help="absolute path to the policy config .yaml file.", required=True)
+    parser.add_argument("--robot", help="igris_b or igris_c", required=True)
     parser.add_argument("--human_reward_labeler", action="store_true", help="whether reward labeling is done by a human")
     args = parser.parse_args()
     if args.train_config:
         args.train_config = os.path.abspath(args.train_config)
 
-    start_online_rl(args.train_config, args.inference_config, args.human_reward_labeler)
+    start_online_rl(args.train_config, args.inference_runtime_config, args.policy_yaml, args.robot, args.human_reward_labeler)

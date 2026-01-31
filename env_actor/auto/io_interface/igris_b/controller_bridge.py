@@ -126,7 +126,7 @@ class ControllerBridge:
     def _start_cam_recording(self):
         self.cams = {}
         for cam_name in self.runtime_params.camera_names:
-            if cam_name == 'head' or 'right':
+            if cam_name in ['head', 'right']:
                 self.cams[cam_name] = RBRSCamera(device_id1=f"/dev/{cam_name}_camera1", device_id2=None)
             elif cam_name == 'left':
                 self.cams[cam_name] = RBRSCamera(device_id1=None, device_id2=f"/dev/{cam_name}_camera2")
@@ -177,36 +177,19 @@ class ControllerBridge:
         return arr
 
     def _obs_dict_to_np_array(self, obs_dict: dict[str, np.ndarray]):
+        """
+        Convert observation dict to flat numpy array.
+
+        For IGRIS_B, the state keys are predefined in IGRIS_B_STATE_KEYS.
+        Each key maps to a 6D joint vector (position or current).
+        Total: 8 keys * 6D = 48D state vector.
+        """
         arrays = []
         for key in IGRIS_B_STATE_KEYS:
-            field_config = config.get_observation_field_config(key)
             if key in obs_dict and obs_dict[key] is not None:
-
-                if key == "/observation/barcode":
-                    arrays.append(np.array([1.0 if obs_dict[key] else 0.0], dtype=np.float32))
-                elif field_config == "pose.position":
-                    arrays.append(ensure_array_shape(obs_dict[key], (3,)))
-                elif field_config == "pose.orientation":
-                    arrays.append(ensure_array_shape(obs_dict[key], (4,)))
-                elif isinstance(field_config, dict) and "slice" in field_config:
-                    s = field_config["slice"]
-                    arrays.append(ensure_array_shape(obs_dict[key], (s[1] - s[0],)))
-                else:
-                    # Default structural field size: 6 (e.g., twist or pose6D)
-                    arrays.append(ensure_array_shape(obs_dict[key], (6,)))
+                # Each observation is expected to be a 6D vector
+                arrays.append(self._ensure_array_shape(obs_dict[key], (6,)))
             else:
-                # Missing field → zero-fill with the expected shape
-                if key == "/observation/barcode":
-                    arrays.append(np.array([0.0], dtype=np.float32))
-                elif field_config == "pose.position":
-                    arrays.append(np.zeros((3,), dtype=np.float32))
-                elif field_config == "pose.orientation":
-                    arrays.append(np.zeros((4,), dtype=np.float32))
-                elif isinstance(field_config, dict) and "slice" in field_config:
-                    s = field_config["slice"]
-                    arrays.append(np.zeros((s[1] - s[0],), dtype=np.float32))
-                else:
-                    arrays.append(np.zeros((6,), dtype=np.float32))
+                # Missing field → zero-fill with expected shape
+                arrays.append(np.zeros((6,), dtype=np.float32))
         return np.concatenate(arrays, axis=-1)
-    
-    # max time steps
