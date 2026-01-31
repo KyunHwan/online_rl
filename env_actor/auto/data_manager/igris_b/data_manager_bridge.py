@@ -244,7 +244,10 @@ class DataManagerBridge:
         """Initialize episodic data buffers for training."""
         self.all_time_data = []
 
-    def get_train_data_buffer(self):
+    def serve_train_data_buffer(self):
+        """Add observation state to episodic training buffer."""
+        # TODO: Implement episodic data collection for training
+        pass
 
     def _add_episodic_obs_state(self, obs_data):
         """Add observation state to episodic training buffer."""

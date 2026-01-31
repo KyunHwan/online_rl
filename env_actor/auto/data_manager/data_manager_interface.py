@@ -38,5 +38,5 @@ class DataManagerInterface:
     def init_train_data_buffer(self):
         self.data_manager_bridge.init_train_data_buffer()
     
-    def get_train_data_buffer(self):
-        self.data_manager_bridge.get_train_data_buffer()
+    def serve_train_data_buffer(self):
+        self.data_manager_bridge.serve_train_data_buffer()

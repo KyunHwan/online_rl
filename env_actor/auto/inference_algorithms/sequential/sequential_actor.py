@@ -11,7 +11,8 @@ import ray
 
 from env_actor.auto.io_interface.controller_interface import ControllerInterface
 from env_actor.auto.data_manager.data_manager_interface import DataManagerInterface
-from env_actor.policy.loader import build_policy
+from online_rl.env_actor.policy.utils.loader import build_policy
+from online_rl.env_actor.policy.utils.weight_transfer import load_state_dict_cpu_into_module
 
 @ray.remote(num_gpus=1)
 class SequentialActor:
@@ -53,88 +54,98 @@ class SequentialActor:
         self.controller_interface = ControllerInterface(robot_config=robot_config, robot=robot)
         self.data_manager_interface = DataManagerInterface(robot_config=robot_config, robot=robot)
 
+        self.policy_state_manager_handle = policy_state_manager_handle
+        self.episode_queue_handle = episode_queue_handle
+
     def start(self) -> None:
-        """
-        Run the main sequential inference control loop.
-
-        Simple orchestration - all processing delegated to DataManager.
-        """
-        print("Starting sequential inference engine...")
-
-        # 1. Initialize robot position
-        print("Initializing robot position...")
-        prev_joint = self.controller_interface.init_robot_position()
-        self.data_manager_interface.update_prev_joint(prev_joint)
-
         # 2. Start state readers (cameras and proprioception)
         print("Starting state readers...")
         self.controller_interface.start_state_readers()
 
-        # 3. Read initial state and bootstrap observation history
-        print("Bootstrapping observation history...")
-        initial_state = self.controller_interface.read_state()
-
-        # Initialize history buffers in data manager
-        self.data_manager_interface.init_inference_obs_state_buffer(initial_state)
-
         # 4. Initialize timing
         rate_controller = self.controller_interface.recorder_rate_controller()
         DT = self.controller_interface.DT
-        start_time = time.time()
-        next_t = time.perf_counter()
+        
+        episode = 0
 
-        # 5. Main control loop
-        for t in range(9000):
-            # Rate-limit to maintain target HZ
-            rate_controller.sleep()
+        while True:
+            if episode > 0:
+                current_weights_ref = self.policy_state_manager_handle.get_weights.remote()
+                current_weights = ray.get(current_weights_ref)
+                if current_weights is not None:
+                    for model_name, model in self.policy.components.items():
+                        sd_cpu = current_weights[model_name]   # <-- critical fix
+                        missing, unexpected = load_state_dict_cpu_into_module(model, sd_cpu, strict=True)
 
-            # a. Read latest observations (raw from robot)
-            obs_data = self.controller_interface.read_state()
+                # TODO: Serve the train data buffer
+                self.data_manager_interface.serve_train_data_buffer()
+            
+            self.data_manager_interface.init_train_data_buffer()
 
-            if 'proprio' not in obs_data:
-                print(f"Warning: No proprio data at step {t}, skipping...")
-                continue
+            print("Initializing robot position...")
+            prev_joint = self.controller_interface.init_robot_position()
+            self.data_manager_interface.update_prev_joint(prev_joint)
 
-            # b. Update observation history in data manager
-            self.data_manager_interface.update_state_history(obs_data)
+            print("Bootstrapping observation history...")
+            initial_state = self.controller_interface.read_state()
 
-            # c. Conditionally run policy
-            if (t % self.controller_interface.policy_update_period) == 0 or t == 0:
-                # Get normalized observations from data manager
-                normalized_obs = self.data_manager_interface.serve_normalized_obs_state(self.device)
+            self.data_manager_interface.init_inference_obs_state_buffer(initial_state)
 
-                # Generate noise in data manager
-                noise = self.data_manager_interface.generate_noise(self.device)
+            next_t = time.perf_counter()
 
-                # Add noise to observation dict for policy
-                normalized_obs['noise'] = noise
+            # 5. Main control loop
+            for t in range(9000):
+                # Rate-limit to maintain target HZ
+                rate_controller.sleep()
 
-                # Run policy forward pass (just neural network)
+                # a. Read latest observations (raw from robot)
+                obs_data = self.controller_interface.read_state()
 
-                policy_output = self.policy.predict(normalized_obs)
+                if 'proprio' not in obs_data:
+                    print(f"Warning: No proprio data at step {t}, skipping...")
+                    continue
 
-                # Buffer and denormalize action in data manager
-                self.data_manager_interface.buffer_action_chunk(policy_output, t, self.device)
+                # b. Update observation history in data manager
+                self.data_manager_interface.update_state_history(obs_data)
 
-            # d. Get current action from data manager (already denormalized)
-            action = self.data_manager_interface.get_current_action(t)
+                # c. Conditionally run policy
+                if (t % self.controller_interface.policy_update_period) == 0 or t == 0:
+                    # Get normalized observations from data manager
+                    normalized_obs = self.data_manager_interface.serve_normalized_obs_state(self.device)
 
-            # e. Publish action to robot (includes slew-rate limiting)
-            smoothed_joint = self.controller_interface.publish_action(
-                action,
-                self.data_manager_interface.prev_joint
-            )
+                    # Generate noise in data manager
+                    noise = self.data_manager_interface.generate_noise(self.device)
 
-            # f. Update previous joint state in data manager
-            self.data_manager_interface.update_prev_joint(smoothed_joint)
+                    # Add noise to observation dict for policy
+                    normalized_obs['noise'] = noise
 
-            # g. Maintain precise loop timing
-            next_t += DT
-            sleep_time = next_t - time.perf_counter()
-            if sleep_time > 0.0:
-                time.sleep(sleep_time)
+                    # Run policy forward pass (just neural network)
+                    policy_output = self.policy.predict(normalized_obs)
 
-        print("Sequential inference completed successfully!")
+                    # Buffer and denormalize action in data manager
+                    self.data_manager_interface.buffer_action_chunk(policy_output, t, self.device)
+
+                # d. Get current action from data manager (already denormalized)
+                action = self.data_manager_interface.get_current_action(t)
+
+                # e. Publish action to robot (includes slew-rate limiting)
+                smoothed_joint = self.controller_interface.publish_action(
+                    action,
+                    self.data_manager_interface.prev_joint
+                )
+
+                # f. Update previous joint state in data manager
+                self.data_manager_interface.update_prev_joint(smoothed_joint)
+
+                # g. Maintain precise loop timing
+                next_t += DT
+                sleep_time = next_t - time.perf_counter()
+                if sleep_time > 0.0:
+                    time.sleep(sleep_time)
+
+            print("Sequential inference completed successfully!")
+
+            episode += 1
 
 
 """
