@@ -2,9 +2,9 @@ class DataManagerInterface:
     def __init__(self, robot_config, robot):
         self.data_manager_bridge = None
         if robot == "igris_b":
-            import env_actor.auto.inference_utils.igris_b.data_manager_bridge as DataPManagerBridge
+            import env_actor.auto.data_manager.igris_b.data_manager_bridge as DataPManagerBridge
         elif robot == "igris_c":
-            import env_actor.auto.inference_utils.igris_c.data_manager_bridge as DataPManagerBridge
+            import env_actor.auto.data_manager.igris_c.data_manager_bridge as DataPManagerBridge
         self.data_manager_bridge = DataPManagerBridge(robot_config)
     
     def update_prev_joint(self, val):
