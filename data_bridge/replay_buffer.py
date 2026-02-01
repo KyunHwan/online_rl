@@ -14,7 +14,9 @@ class ReplayBufferActor:
         self.episode_slice_len = slice_len
         self.sampler = SliceSampler(
             slice_len=self.episode_slice_len,
-            end_key=("next", "done"), # default in SliceSampler; set to your "done" location
+            traj_key="episode",
+            #end_key=("next", "done"), # default in SliceSampler; set to your "done" location
+            #truncated_key=("next", "_slice_truncated"),
             strict_length=True, # drop episodes shorter than SLICE_LEN
             compile=True
         )

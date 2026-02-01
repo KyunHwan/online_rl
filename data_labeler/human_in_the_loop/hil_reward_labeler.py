@@ -39,28 +39,55 @@ class ManualRewardLabelerActor:
             QVBoxLayout,
             QWidget,
         )
-
+        
         def torch_frame_to_qimage(frame_t: torch.Tensor) -> QImage:
             """
-            frame_t: uint8 tensor [H, W, 3] in RGB, CPU
+            frame_t:
+            - uint8 or float tensor
+            - either [H, W, 3] (HWC, RGB) or [3, H, W] (CHW, RGB)
             Returns a detached/copy QImage safe for Qt usage.
             """
             if frame_t.device.type != "cpu":
                 frame_t = frame_t.cpu()
+
+            if frame_t.ndim != 3:
+                raise ValueError(f"Expected frame with 3 dims, got {tuple(frame_t.shape)}")
+
+            # Accept CHW or HWC, convert to HWC for QImage
+            if frame_t.shape[-1] == 3:
+                # HWC
+                frame_t = frame_t
+            elif frame_t.shape[0] == 3:
+                # CHW -> HWC
+                frame_t = frame_t.permute(1, 2, 0)
+            else:
+                raise ValueError(
+                    f"Expected frame shape [H,W,3] or [3,H,W], got {tuple(frame_t.shape)}"
+                )
+
+            # Ensure uint8 in [0,255]
             if frame_t.dtype != torch.uint8:
-                frame_t = frame_t.to(torch.uint8)
+                if frame_t.is_floating_point():
+                    # Common cases: [0,1] float or [0,255] float
+                    # Heuristic: if max <= 1.0-ish, assume [0,1]
+                    maxv = float(frame_t.max().item()) if frame_t.numel() > 0 else 1.0
+                    if maxv <= 1.0 + 1e-3:
+                        frame_t = frame_t * 255.0
+                    frame_t = frame_t.round().clamp(0, 255).to(torch.uint8)
+                else:
+                    frame_t = frame_t.clamp(0, 255).to(torch.uint8)
 
-            if frame_t.ndim != 3 or frame_t.shape[2] != 3:
-                raise ValueError(f"Expected frame shape [H,W,3], got {tuple(frame_t.shape)}")
+            # IMPORTANT: QImage expects tight packed rows for our bytes_per_line calculation
+            frame_t = frame_t.contiguous()
 
-            np_img = frame_t.numpy()  # shares memory; we .copy() QImage to detach
-            h, w, c = np_img.shape
+            np_img = frame_t.numpy()
+            h, w, c = np_img.shape  # c should be 3
             bytes_per_line = c * w
             qimg = QImage(np_img.data, w, h, bytes_per_line, QImage.Format.Format_RGB888).copy()
             return qimg
 
         class VideoLabelerWindow(QMainWindow):
-            def __init__(self, episode_queue_handle, replay_buffer_actor, title: str, img_frame_key: str="cam_head", reward_key: str="reward",):
+            def __init__(self, episode_queue_handle, replay_buffer_actor, title: str, img_frame_key: str="head", reward_key: str="reward",):
                 super().__init__()
                 self.episode_queue_handle = episode_queue_handle
                 self.replay_buffer_actor = replay_buffer_actor
@@ -163,7 +190,7 @@ class ManualRewardLabelerActor:
                 try:
                     td = ray.get(item) if isinstance(item, ray.ObjectRef) else item
 
-                    frames = td[self.img_frame_key]  # [T,H,W,3]
+                    frames = td[self.img_frame_key]   # [T,H,W,3]
                     reward = td[self.reward_key]      # [T]
                     T = int(frames.shape[0])
 

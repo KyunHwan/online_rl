@@ -72,13 +72,6 @@ class DataManagerBridge:
         Returns:
             Denormalized action as numpy array
         """
-
-
-                data['observation.state'] = (data['observation.state'] - stats_cpu['observation.state']['mean']) / (stats_cpu['observation.state']['std'] + 1e-8)
-                data['observation.current'] = (data['observation.current'] - stats_cpu['observation.current']['mean']) / (stats_cpu['observation.current']['std'] + 1e-8)
-                data['observation.proprio_state'] = data['observation.state']
-                data['observation.state'] = torch.concat([data['observation.state'], data['observation.current']], dim=-1)
-
         action_mean = torch.from_numpy(self.norm_stats['action']['mean']).to(device)
         action_std = torch.from_numpy(self.norm_stats['action']['std']).to(device)
 
@@ -100,19 +93,20 @@ class DataManagerBridge:
         """
         data is directly sent from read_state of Controller Bridge/Interface
         """
+        self.all_time_data.append(obs_data)
+
         # proprio
         if self.runtime_params.proprio_history_size > 1:
             self.robot_proprio_history[1:] = self.robot_proprio_history[:-1]
         self.robot_proprio_history[0] = obs_data['proprio']
 
         # images
-        for key in self.img_obs_history.keys():
-             if key != "proprio":
-                if self.runtime_params.img_obs_every <= 1 or\
-                    (self.image_frame_counter % self.runtime_params.img_obs_every == 0):
-                    if self.runtime_params.num_img_obs > 1:
-                        self.img_obs_history[key][1:] = self.img_obs_history[key][:-1]
-                self.img_obs_history[key][0] = obs_data[key]
+        for cam_name in self.camera_names:
+            if self.runtime_params.img_obs_every <= 1 or\
+                (self.image_frame_counter % self.runtime_params.img_obs_every == 0):
+                if self.runtime_params.num_img_obs > 1:
+                    self.img_obs_history[cam_name][1:] = self.img_obs_history[cam_name][:-1]
+            self.img_obs_history[cam_name][0] = obs_data[cam_name]
 
         self.image_frame_counter += 1
     
@@ -126,9 +120,15 @@ class DataManagerBridge:
         Returns:
             Dict with 'proprio' and 'images' tensors
         """
+
+        norm_obs_state = {}
+
         # Load normalization stats
-        state_mean = torch.from_numpy(self.norm_stats['state_mean']).to(device)
-        state_std = torch.from_numpy(self.norm_stats['state_std']).to(device)
+        state_mean = torch.concat([torch.from_numpy(self.norm_stats['observation.state']['mean']),
+                                   torch.from_numpy(self.norm_stats['observation.current']['mean'])], dim=-1)
+        state_std = torch.concat([torch.from_numpy(self.norm_stats['observation.state']['std']),
+                                  torch.from_numpy(self.norm_stats['observation.current']['std'])], dim=-1)
+
         eps = 1e-8
 
         # Normalize proprioceptive state
@@ -147,20 +147,15 @@ class DataManagerBridge:
             ss_rep = state_std if state_std.numel() == total_size else state_std.repeat((total_size + state_std.numel() - 1) // state_std.numel())[:total_size]
             rh = (rh - sm_rep.view(num_robot_obs, state_dim)) / (ss_rep.view(num_robot_obs, state_dim) + eps)
 
-        rh = rh.reshape(1, -1).view(1, num_robot_obs, state_dim)
-
+        norm_obs_state['proprio'] = rh.reshape(1, -1).view(1, num_robot_obs, state_dim)
+        
         # Normalize images
-        cam_list = []
-        for cam_name in self.runtime_params.camera_names:
-            cam_list.append(self.img_obs_history[cam_name])
-        all_cam_images = np.stack(cam_list, axis=0)
-
         img_dtype = torch.float16 if device.type == "cuda" else torch.float32
-        cam_images = torch.from_numpy(all_cam_images / 255.0).to(
-            device=device, dtype=img_dtype, non_blocking=True
-        ).unsqueeze(0)
+        for cam_name in self.runtime_params.camera_names:
+            norm_obs_state[cam_name] = torch.from_numpy(self.img_obs_history[cam_name] / 255.0).to(
+                                            device=device, dtype=img_dtype, non_blocking=True)
 
-        return {'proprio': rh, 'images': cam_images}
+        return norm_obs_state
     
     def generate_noise(self, device: torch.device) -> torch.Tensor:
         """
@@ -207,7 +202,7 @@ class DataManagerBridge:
         offset = current_step - self.last_policy_step
         idx = int(np.clip(offset, 0, self.last_action_chunk.shape[0] - 1))
         action = self.last_action_chunk[idx]
-
+        # TODO: Put this into the self.all_time_data
         return action
     
     def init_inference_obs_state_buffer(self, init_data):
