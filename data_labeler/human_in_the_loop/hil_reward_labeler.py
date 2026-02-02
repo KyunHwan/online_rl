@@ -16,7 +16,7 @@ class ManualRewardLabelerActor:
     lets the user label per-frame binary rewards, and pushes back the labeled TensorDict.
     """
 
-    def __init__(self, episode_queue_handle, replay_buffer_actor, img_frame_key: str="cam_head", reward_key: str="reward", window_title: str = "Reward Labeler", ):
+    def __init__(self, episode_queue_handle, replay_buffer_actor, img_frame_key: str="head", reward_key: str="reward", window_title: str = "Reward Labeler", ):
         self.episode_queue_handle = episode_queue_handle
         self.replay_buffer_actor = replay_buffer_actor
         self.img_frame_key = img_frame_key

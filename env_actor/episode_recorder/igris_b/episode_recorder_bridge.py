@@ -15,6 +15,7 @@ class EpisodeRecorderBridge:
         """
         train_data = [TensorDict({
             "episode": torch.tensor(episode_id, dtype=torch.int64),
+            "reward": torch.zeros(1).squeeze(),
             ("next", "done"): torch.zeros(1, dtype=torch.bool)
         }) for i in range(len(self.episodic_obs_state))]
         train_data = torch.stack(train_data, dim=0)
