@@ -20,23 +20,6 @@ class ReplayBufferActor:
             strict_length=True, # drop episodes shorter than SLICE_LEN
             compile=True
         )
-        """
-        # ---------------------------------------------------------------------
-        # Example: extend with ONE trajectory TensorDict of shape [T]
-        # (In practice you'll extend with data from your collector / dataset.)
-        T = 1000
-        traj = TensorDict(
-            {
-                "proprio": torch.randn(T, 16),
-                "action": torch.randn(T, 7),
-                ("next", "done"): torch.zeros(T, 1, dtype=torch.bool),
-            },
-            batch_size=[T],
-        )
-        traj[("next", "done")][-1] = True          # mark end of episode
-        rb.extend(traj)
-        # ---------------------------------------------------------------------
-        """
 
         self.buffer = TensorDictReplayBuffer(
             storage=self.storage,

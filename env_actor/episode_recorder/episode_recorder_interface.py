@@ -15,3 +15,6 @@ class EpisodeRecorderInterface:
     
     def add_action(self, action):
         self.episode_recorder_bridge.add_action(action)
+
+    def init_train_data_buffer(self):
+        self.episode_recorder_bridge.init_train_data_buffer()

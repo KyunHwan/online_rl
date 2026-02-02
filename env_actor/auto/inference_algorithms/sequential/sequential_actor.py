@@ -81,12 +81,11 @@ class SequentialActor:
                         sd_cpu = current_weights[model_name]   # <-- critical fix
                         missing, unexpected = load_state_dict_cpu_into_module(model, sd_cpu, strict=True)
 
-                # TODO: Serve the train data buffer
                 episodic_data_ref = ray.put(self.episode_recorder.serve_train_data_buffer(episode))
                 self.episode_queue_handle.put(episodic_data_ref,
                                               block=True)
                 
-            self.data_manager_interface.init_train_data_buffer()
+            self.episode_recorder.init_train_data_buffer()
 
             print("Initializing robot position...")
             prev_joint = self.controller_interface.init_robot_position()
