@@ -6,7 +6,7 @@ class EpisodeRecorderBridge:
         self.episodic_obs_state = []
         self.episodic_action = []
 
-    def serve_train_data_buffer(self):
+    def serve_train_data_buffer(self, episode_id):
         # 
         return
     

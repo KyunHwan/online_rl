@@ -7,8 +7,8 @@ class EpisodeRecorderInterface:
             import env_actor.episode_recorder.igris_c.episode_recorder_bridge as EpisodeRecorderBridge
         self.episode_recorder_bridge = EpisodeRecorderBridge()
 
-    def serve_train_data_buffer(self):
-        return self.episode_recorder_bridge.serve_train_data_buffer()
+    def serve_train_data_buffer(self, episode_id):
+        return self.episode_recorder_bridge.serve_train_data_buffer(episode_id)
     
     def add_obs_state(self, obs_data):
         self.episode_recorder_bridge.add_obs_state(obs_data)

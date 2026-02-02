@@ -70,10 +70,10 @@ class SequentialActor:
         rate_controller = self.controller_interface.recorder_rate_controller()
         DT = self.controller_interface.DT
         
-        episode = 0
+        episode = -1
 
         while True:
-            if episode > 0:
+            if episode >= 0:
                 current_weights_ref = self.policy_state_manager_handle.get_weights.remote()
                 current_weights = ray.get(current_weights_ref)
                 if current_weights is not None:
@@ -82,7 +82,7 @@ class SequentialActor:
                         missing, unexpected = load_state_dict_cpu_into_module(model, sd_cpu, strict=True)
 
                 # TODO: Serve the train data buffer
-                episodic_data_ref = ray.put(TensorDict.stack(self.episode_recorder.serve_train_data_buffer(),
+                episodic_data_ref = ray.put(TensorDict.stack(self.episode_recorder.serve_train_data_buffer(episode),
                                                              dim=0))
                 self.episode_queue_handle.put(episodic_data_ref,
                                               block=True)
