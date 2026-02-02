@@ -58,22 +58,22 @@ class DataManagerBridge:
         self.last_action_chunk = None  # Last policy output (denormalized)
         self.last_policy_step = -1
 
-        # Train Data Buffer
-        self.all_time_data = []
+    @property
+    def prev_joint(self):
+        return self.prev_joint
     
-    def _denormalize_action_chunk(self, action: torch.Tensor, device: torch.device) -> np.ndarray:
+    def denormalize_action(self, action: torch.Tensor) -> np.ndarray:
         """
         Denormalize action using stats.
 
         Args:
             action: Normalized action tensor
-            device: Device for tensor operations
 
         Returns:
             Denormalized action as numpy array
         """
-        action_mean = torch.from_numpy(self.norm_stats['action']['mean']).to(device)
-        action_std = torch.from_numpy(self.norm_stats['action']['std']).to(device)
+        action_mean = torch.from_numpy(self.norm_stats['action']['mean']).to(action.device)
+        action_std = torch.from_numpy(self.norm_stats['action']['std']).to(action.device)
 
         # Denormalize: action = action * std + mean
         denormalized = action * action_std + action_mean
@@ -93,7 +93,6 @@ class DataManagerBridge:
         """
         data is directly sent from read_state of Controller Bridge/Interface
         """
-        self.all_time_data.append(obs_data)
 
         # proprio
         if self.runtime_params.proprio_history_size > 1:
@@ -169,7 +168,7 @@ class DataManagerBridge:
         """
         return torch.randn(1, self.num_queries, self.action_dim).to(device)
 
-    def buffer_action_chunk(self, policy_output: torch.Tensor, current_step: int, device: torch.device):
+    def buffer_action_chunk(self, policy_output: torch.Tensor, current_step: int):
         """
         Denormalize and buffer action chunk from policy.
 
@@ -179,7 +178,7 @@ class DataManagerBridge:
             device: Device for tensor operations
         """
         # Denormalize action chunk
-        denormalized = self._denormalize_action_chunk(policy_output, device)
+        denormalized = self.denormalize_action(policy_output)
 
         # Store as numpy array: (num_queries, action_dim)
         self.last_action_chunk = denormalized.squeeze(0) if denormalized.ndim == 3 else denormalized
@@ -202,7 +201,6 @@ class DataManagerBridge:
         offset = current_step - self.last_policy_step
         idx = int(np.clip(offset, 0, self.last_action_chunk.shape[0] - 1))
         action = self.last_action_chunk[idx]
-        # TODO: Put this into the self.all_time_data
         return action
     
     def init_inference_obs_state_buffer(self, init_data):
@@ -214,51 +212,24 @@ class DataManagerBridge:
                 Should contain 'proprio' and camera image keys
         """
         self.image_frame_counter = 0
+        self.last_policy_step = -1
 
         # Initialize image history buffers
         self.img_obs_history = {
-            cam: np.zeros((self.num_image_obs,
-                           3,
-                           self.runtime_params.mono_img_resize_height,
-                           self.runtime_params.mono_img_resize_width), dtype=np.uint8)
+            cam: np.repeat(
+                    init_data[cam][np.newaxis, ...], # Add batch dim: (1, 3, H, W)
+                    self.num_image_obs,              # Repeat count
+                    axis=0                           # Axis to repeat along
+                )
             for cam in self.camera_names
         }
 
         # Initialize proprio history buffer and bootstrap with initial state
-        self.robot_proprio_history = np.zeros((self.num_robot_obs,
-                                               self.state_dim), dtype=np.float32)
-
-        # Bootstrap history by repeating initial state
-        if 'proprio' in init_data:
-            init_proprio = init_data['proprio']
-            self.robot_proprio_history[:] = np.repeat(
-                init_proprio.reshape(1, -1), self.num_robot_obs, axis=0
-            )
-
-    def init_train_data_buffer(self):
-        """Initialize episodic data buffers for training."""
-        self.all_time_data = []
-
-    def serve_train_data_buffer(self):
-        """Add observation state to episodic training buffer."""
-        # TODO: Should return a list of tensordicts
-        pass
-
-    def _add_episodic_obs_state(self, obs_data):
-        """Add observation state to episodic training buffer."""
-        # TODO: Implement episodic data collection for training
-        pass
-
-    def _add_episodic_action(self, action):
-        """Add action to episodic training buffer."""
-        # TODO: Implement episodic data collection for training
-        pass
-
-    
-
-    
-    
-    
+        self.robot_proprio_history = np.repeat(
+                                        init_data['proprio'][np.newaxis, ...], # Add batch dim: (1, 3, H, W)
+                                        self.num_robot_obs,              # Repeat count
+                                        axis=0                           # Axis to repeat along
+                                    )
 
     
 

@@ -92,11 +92,11 @@ class ControllerBridge:
 
         # Slew-rate limiting per joint (rad/step)
         delta = np.clip(raw_joint - prev_joint, -self.runtime_params.max_delta, self.runtime_params.max_delta)
-        smoothed = prev_joint + delta
+        smoothed_joints = prev_joint + delta
 
         # Publish joints
         joint_msg = JointState()
-        joint_msg.position = smoothed.tolist()
+        joint_msg.position = smoothed_joints.tolist()
         self.joint_pub.publish(joint_msg)
 
         # Publish fingers (right followed by left to match action layout)
@@ -104,8 +104,10 @@ class ControllerBridge:
         finger_msg.data = list(right_finger_pos) + list(left_finger_pos)
         self.finger_pub.publish(finger_msg)
 
+        # TODO: Implement returning smoothed_joints
+
         # This output should be used to update prev_joint in the Data Manager Bridge/Interface
-        return smoothed 
+        return smoothed_joints, np.concatenate([left_finger_pos, right_finger_pos])
     
     def start_state_readers(self):
         self._start_cam_recording()

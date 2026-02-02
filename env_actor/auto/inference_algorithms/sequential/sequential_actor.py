@@ -7,11 +7,13 @@ Simple orchestration: Controller -> DataManager -> Policy -> DataManager -> Cont
 
 import time
 import torch
+import numpy as np
 from tensordict import TensorDict
 import ray
 
 from env_actor.auto.io_interface.controller_interface import ControllerInterface
 from env_actor.auto.data_manager.data_manager_interface import DataManagerInterface
+from env_actor.episode_recorder.episode_recorder_interface import EpisodeRecorderInterface
 from online_rl.env_actor.policy.utils.loader import build_policy
 from online_rl.env_actor.policy.utils.weight_transfer import load_state_dict_cpu_into_module
 
@@ -54,6 +56,7 @@ class SequentialActor:
         self.policy = build_policy(policy_yaml_path=policy_yaml_path, map_location=self.device)
         self.controller_interface = ControllerInterface(robot_config=robot_config, robot=robot)
         self.data_manager_interface = DataManagerInterface(robot_config=robot_config, robot=robot)
+        self.episode_recorder = EpisodeRecorderInterface(robot=robot)
 
         self.policy_state_manager_handle = policy_state_manager_handle
         self.episode_queue_handle = episode_queue_handle
@@ -79,7 +82,7 @@ class SequentialActor:
                         missing, unexpected = load_state_dict_cpu_into_module(model, sd_cpu, strict=True)
 
                 # TODO: Serve the train data buffer
-                episodic_data_ref = ray.put(TensorDict.stack(self.data_manager_interface.serve_train_data_buffer(),
+                episodic_data_ref = ray.put(TensorDict.stack(self.episode_recorder.serve_train_data_buffer(),
                                                              dim=0))
                 self.episode_queue_handle.put(episodic_data_ref,
                                               block=True)
@@ -104,6 +107,7 @@ class SequentialActor:
 
                 # a. Read latest observations (raw from robot)
                 obs_data = self.controller_interface.read_state()
+                self.episode_recorder.add_obs_state(obs_data)
 
                 if 'proprio' not in obs_data:
                     print(f"Warning: No proprio data at step {t}, skipping...")
@@ -127,19 +131,22 @@ class SequentialActor:
                     policy_output = self.policy.predict(normalized_obs)
 
                     # Buffer and denormalize action in data manager
-                    self.data_manager_interface.buffer_action_chunk(policy_output, t, self.device)
+                    self.data_manager_interface.buffer_action_chunk(policy_output, t)
 
                 # d. Get current action from data manager (already denormalized)
                 action = self.data_manager_interface.get_current_action(t)
+                
 
                 # e. Publish action to robot (includes slew-rate limiting)
-                smoothed_joint = self.controller_interface.publish_action(
+                smoothed_joints, fingers = self.controller_interface.publish_action(
                     action,
                     self.data_manager_interface.prev_joint
                 )
+                self.episode_recorder.add_action(np.concatenate([np.concatenate([smoothed_joints[6:], smoothed_joints[:6]]),
+                                                                               fingers]))
 
                 # f. Update previous joint state in data manager
-                self.data_manager_interface.update_prev_joint(smoothed_joint)
+                self.data_manager_interface.update_prev_joint(smoothed_joints)
 
                 # g. Maintain precise loop timing
                 next_t += DT

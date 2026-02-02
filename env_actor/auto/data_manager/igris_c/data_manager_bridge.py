@@ -44,51 +44,42 @@ class DataManagerBridge:
         raise NotImplementedError("IGRIS_C data manager bridge implementation pending hardware specs")
 
     @property
-    def state_dim(self):
-        """Return proprioceptive state dimension."""
-        raise NotImplementedError()
-
-    @property
     def prev_joint(self):
         """Return previous joint positions."""
         raise NotImplementedError()
 
+    def denormalize_action(self, action: torch.Tensor) -> np.ndarray:
+        """Update normalization stats (placeholder for dynamic stats updates)."""
+        raise NotImplementedError()
+    
+    def update_prev_joint(self, val):
+        """Update normalization stats (placeholder for dynamic stats updates)."""
+        raise NotImplementedError()
+    
     def update_norm_stats(self):
         """Update normalization stats (placeholder for dynamic stats updates)."""
         raise NotImplementedError()
-
-    def update_prev_joint(self, val):
-        """Update previous joint state for slew-rate limiting."""
-        raise NotImplementedError()
-
+    
     def update_state_history(self, obs_data):
-        """Update observation history buffers."""
+        """Update normalization stats (placeholder for dynamic stats updates)."""
         raise NotImplementedError()
-
-    def denormalize_action(self, action: torch.Tensor, device: torch.device) -> np.ndarray:
-        """Denormalize action using normalization stats."""
+    
+    def serve_normalized_obs_state(self, device: torch.device) -> dict[str, torch.Tensor]:
+        """Update normalization stats (placeholder for dynamic stats updates)."""
         raise NotImplementedError()
-
-    def serve_normalized_obs_state(self, device: torch.device) -> dict:
-        """Serve normalized observations for policy inference."""
-        raise NotImplementedError()
-
-    def init_inference_obs_state_buffer(self, init_data):
-        """Initialize observation history buffers for inference."""
-        raise NotImplementedError()
-
-    def init_train_data_buffer(self):
-        """Initialize episodic data buffers for training."""
-        raise NotImplementedError()
-
+    
     def generate_noise(self, device: torch.device) -> torch.Tensor:
-        """Generate noise tensor for policy."""
+        """Update normalization stats (placeholder for dynamic stats updates)."""
         raise NotImplementedError()
-
-    def buffer_action_chunk(self, policy_output: torch.Tensor, current_step: int, device: torch.device):
-        """Denormalize and buffer action chunk from policy."""
+    
+    def buffer_action_chunk(self, policy_output: torch.Tensor, current_step: int):
+        """Update normalization stats (placeholder for dynamic stats updates)."""
         raise NotImplementedError()
-
+    
     def get_current_action(self, current_step: int) -> np.ndarray:
-        """Get action for current timestep via simple indexing."""
+        """Update normalization stats (placeholder for dynamic stats updates)."""
+        raise NotImplementedError()
+    
+    def init_inference_obs_state_buffer(self, init_data):
+        """Update normalization stats (placeholder for dynamic stats updates)."""
         raise NotImplementedError()
