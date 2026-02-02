@@ -82,8 +82,7 @@ class SequentialActor:
                         missing, unexpected = load_state_dict_cpu_into_module(model, sd_cpu, strict=True)
 
                 # TODO: Serve the train data buffer
-                episodic_data_ref = ray.put(TensorDict.stack(self.episode_recorder.serve_train_data_buffer(episode),
-                                                             dim=0))
+                episodic_data_ref = ray.put(self.episode_recorder.serve_train_data_buffer(episode))
                 self.episode_queue_handle.put(episodic_data_ref,
                                               block=True)
                 

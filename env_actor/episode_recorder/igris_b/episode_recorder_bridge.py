@@ -18,6 +18,8 @@ class EpisodeRecorderBridge:
             left
             right
         where head, left, right represent images.
+
+        Returns a tensordict for SliceSampler replay buffer.
         """
         self.episodic_obs_state.append(obs_data)
     
