@@ -7,7 +7,9 @@ class EpisodeRecorderBridge:
         self.episodic_action = []
 
     def serve_train_data_buffer(self, episode_id):
-        # 
+        """
+        Returns a tensordict for SliceSampler replay buffer
+        """
         return
     
     def add_obs_state(self, obs_data: dict[str, np.array]):
@@ -18,8 +20,6 @@ class EpisodeRecorderBridge:
             left
             right
         where head, left, right represent images.
-
-        Returns a tensordict for SliceSampler replay buffer.
         """
         self.episodic_obs_state.append(obs_data)
     
