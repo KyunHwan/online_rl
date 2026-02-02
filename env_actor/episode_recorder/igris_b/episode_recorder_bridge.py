@@ -11,6 +11,14 @@ class EpisodeRecorderBridge:
         return
     
     def add_obs_state(self, obs_data: dict[str, np.array]):
+        """
+        Fields of obs_data are:
+            proprio
+            head
+            left
+            right
+        where head, left, right represent images.
+        """
         self.episodic_obs_state.append(obs_data)
     
     def add_action(self, action: np.array):
