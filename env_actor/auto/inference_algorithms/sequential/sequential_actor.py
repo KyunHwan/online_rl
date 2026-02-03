@@ -67,7 +67,8 @@ class SequentialActor:
         self.controller_interface.start_state_readers()
 
         # 4. Initialize timing
-        rate_controller = self.controller_interface.recorder_rate_controller()
+        # rate controller should probably be replaced with using DT since we don't know if it will be used in Igris-C control.
+        # rate_controller = self.controller_interface.recorder_rate_controller()
         DT = self.controller_interface.DT
         
         episode = -1
@@ -89,6 +90,8 @@ class SequentialActor:
 
             print("Initializing robot position...")
             prev_joint = self.controller_interface.init_robot_position()
+            time.sleep(0.5)
+            
             self.data_manager_interface.update_prev_joint(prev_joint)
 
             print("Bootstrapping observation history...")
@@ -101,7 +104,7 @@ class SequentialActor:
             # 5. Main control loop
             for t in range(9000):
                 # Rate-limit to maintain target HZ
-                rate_controller.sleep()
+                # rate_controller.sleep()
 
                 # a. Read latest observations (raw from robot)
                 obs_data = self.controller_interface.read_state()
@@ -133,13 +136,12 @@ class SequentialActor:
 
                 # d. Get current action from data manager (already denormalized)
                 action = self.data_manager_interface.get_current_action(t)
-                
 
                 # e. Publish action to robot (includes slew-rate limiting)
                 smoothed_joints, fingers = self.controller_interface.publish_action(
-                    action,
-                    self.data_manager_interface.prev_joint
-                )
+                                                                        action,
+                                                                        self.data_manager_interface.prev_joint
+                                                                    )
                 self.episode_recorder.add_action(np.concatenate([np.concatenate([smoothed_joints[6:], smoothed_joints[:6]]),
                                                                                fingers]))
 
@@ -152,7 +154,7 @@ class SequentialActor:
                 if sleep_time > 0.0:
                     time.sleep(sleep_time)
 
-            print("Sequential inference completed successfully!")
+            print("Episode finished !!")
 
             episode += 1
 

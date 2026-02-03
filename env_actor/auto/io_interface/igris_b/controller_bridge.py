@@ -118,7 +118,7 @@ class ControllerBridge:
         joint_msg = JointState()
         joint_msg.position = INIT_JOINT.copy()
         self.joint_pub.publish(joint_msg)
-        time.sleep(0.5)
+        
         return INIT_JOINT.copy()
 
     def _start_proprio_recording(self):
