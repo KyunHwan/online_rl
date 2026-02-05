@@ -12,10 +12,10 @@ from tensordict import TensorDict
 import ray
 
 from env_actor.auto.io_interface.controller_interface import ControllerInterface
-from env_actor.auto.data_manager.data_manager_interface import DataManagerInterface
+from .data_manager.data_manager_interface import DataManagerInterface
 from env_actor.episode_recorder.episode_recorder_interface import EpisodeRecorderInterface
-from online_rl.env_actor.policy.utils.loader import build_policy
-from online_rl.env_actor.policy.utils.weight_transfer import load_state_dict_cpu_into_module
+from env_actor.policy.utils.loader import build_policy
+from env_actor.policy.utils.weight_transfer import load_state_dict_cpu_into_module
 
 @ray.remote(num_gpus=1)
 class SequentialActor:
@@ -37,7 +37,8 @@ class SequentialActor:
 
     def __init__(
         self,
-        robot_config,
+        runtime_params,
+        inference_runtime_topics_config,
         robot,
         policy_yaml_path,
         policy_state_manager_handle,
@@ -54,8 +55,10 @@ class SequentialActor:
         """
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.policy = build_policy(policy_yaml_path=policy_yaml_path, map_location=self.device)
-        self.controller_interface = ControllerInterface(robot_config=robot_config, robot=robot)
-        self.data_manager_interface = DataManagerInterface(robot_config=robot_config, robot=robot)
+        self.controller_interface = ControllerInterface(runtime_params=runtime_params, 
+                                                        inference_runtime_topics_config=inference_runtime_topics_config,
+                                                        robot=robot)
+        self.data_manager_interface = DataManagerInterface(runtime_params=runtime_params, robot=robot)
         self.episode_recorder = EpisodeRecorderInterface(robot=robot)
 
         self.policy_state_manager_handle = policy_state_manager_handle

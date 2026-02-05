@@ -33,13 +33,12 @@ class DataManagerBridge:
     - prev_joint: np.ndarray (previous joint positions)
     """
 
-    def __init__(self, inference_runtime_config):
+    def __init__(self, runtime_params):
         """
         Initialize data manager bridge for IGRIS_C.
 
         TODO: Implement based on IGRIS_C specifications
         Args:
-            inference_runtime_config: Runtime configuration dict
         """
         raise NotImplementedError("IGRIS_C data manager bridge implementation pending hardware specs")
 

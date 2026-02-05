@@ -25,20 +25,22 @@ class ControllerBridge:
     """
     Stateless controller bridging between the robot and the controller interface class
     """
-    def __init__(self, inference_runtime_config):
-        self.runtime_params = RuntimeParams(inference_runtime_config=inference_runtime_config)
+    def __init__(self,
+                 runtime_params, 
+                 inference_runtime_topics_config,):
+        self.runtime_params = runtime_params
 
-        self.input_recorder = GenericRecorder(inference_runtime_config)
+        self.input_recorder = GenericRecorder(inference_runtime_topics_config)
         self.qos = QoSProfile(depth=10)
         self.qos.reliability = QoSReliabilityPolicy.RELIABLE
         self.joint_pub = self.input_recorder.create_publisher(
                                 JointState, 
-                                f"/igris_b/{self.runtime_params.robot_id}/target_joints", 
+                                f"/igris_b/{self.input_recorder.robot_id}/target_joints", 
                                 qos_profile=self.qos
                         )
         self.finger_pub = self.input_recorder.create_publisher(
                                 Float32MultiArray,
-                                f"/igris_b/{self.runtime_params.robot_id}/finger_target", 
+                                f"/igris_b/{self.input_recorder.robot_id}/finger_target", 
                                 qos_profile=self.qos)
 
         self.executor = SingleThreadedExecutor()

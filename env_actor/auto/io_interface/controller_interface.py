@@ -1,11 +1,15 @@
 class ControllerInterface:
-    def __init__(self, robot_config, robot):
+    def __init__(self, 
+                 runtime_params, 
+                 inference_runtime_topics_config,
+                 robot):
         self.controller_bridge = None
         if robot == "igris_b":
             import igris_b.controller_bridge as ControllerBridge
         elif robot == "igris_c":
             import igris_c.controller_bridge as ControllerBridge
-        self.controller_bridge = ControllerBridge(robot_config)
+        self.controller_bridge = ControllerBridge(runtime_params=runtime_params, 
+                                                  inference_runtime_topics_config=inference_runtime_topics_config,)
 
     @property
     def DT(self):

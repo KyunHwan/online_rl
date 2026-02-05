@@ -4,7 +4,6 @@ import numpy as np
 
 class RuntimeParams:
     def __init__(self, inference_runtime_config):
-        self._robot_id = inference_runtime_config['robot_id']
         self._HZ = inference_runtime_config['HZ']
         self._policy_update_period = inference_runtime_config['policy_update_period']
 
@@ -22,10 +21,6 @@ class RuntimeParams:
         self._action_chunk_size = inference_runtime_config['action_chunk_size']
 
         self._norm_stats_file_path = inference_runtime_config['norm_stats_file_path']
-
-    @property
-    def robot_id(self):
-        return self._robot_id
     
     @property
     def HZ(self):

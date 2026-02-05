@@ -21,8 +21,8 @@ class DataManagerBridge:
     - Buffer action chunks and select current action
     - Provide dimension info to other components
     """
-    def __init__(self, inference_runtime_config):
-        self.runtime_params = RuntimeParams(inference_runtime_config=inference_runtime_config)
+    def __init__(self, runtime_params):
+        self.runtime_params = runtime_params
 
         # Load normalization stats from file
         self.norm_stats = self.runtime_params.read_stats_file()
@@ -226,12 +226,61 @@ class DataManagerBridge:
 
         # Initialize proprio history buffer and bootstrap with initial state
         self.robot_proprio_history = np.repeat(
-                                        init_data['proprio'][np.newaxis, ...], # Add batch dim: (1, 3, H, W)
+                                        init_data['proprio'][np.newaxis, ...], # Add batch dim: (1, proprio_dim)
                                         self.num_robot_obs,              # Repeat count
                                         axis=0                           # Axis to repeat along
                                     )
 
+    def normalize_action_chunk(self, action_chunk: np.ndarray) -> torch.Tensor:
+        """Normalize action chunk for RTC guided inference.
+
+        Args:
+            action_chunk: Action chunk array (num_queries, action_dim)
+            device: Torch device for output tensor
+
+        Returns:
+            Normalized action chunk as torch tensor (1, num_queries, action_dim)
+        """
+        action_mean = torch.from_numpy(self.norm_stats['action']['mean'])
+        action_std = torch.from_numpy(self.norm_stats['action']['std'])
+
+        action_tensor = torch.from_numpy(action_chunk).to(dtype=torch.float32)
+        # Add batch dimension: (num_queries, action_dim) -> (1, num_queries, action_dim)
+        action_tensor = action_tensor.unsqueeze(0)
+
+        normalized = (action_tensor - action_mean.view(1, 1, -1)) / (action_std.view(1, 1, -1) + self.eps)
+        return normalized
+
+    def get_raw_obs_arrays(self) -> dict:
+        """Return raw observation arrays for RTC state sharing.
+
+        Returns:
+            Dict with:
+            - 'robot_obs_history': (num_robot_obs, state_dim) proprio history
+            - 'cam_images': (num_cams, num_img_obs, 3, H, W) camera images
+        """
+        raw_obs = {
+            'proprio': self.robot_proprio_history.copy()
+        }
+        for cam in self.camera_names:
+            raw_obs[cam] = self.img_obs_history[cam]
+
+        return raw_obs
     
+    def serve_init_action(self,):
+        """ Serve init action for RTC Guided Inference """
+        init_vec = np.asarray(
+            INIT_JOINT_LIST[6:] + INIT_JOINT_LIST[:6] + INIT_HAND_LIST[:6] + INIT_HAND_LIST[6:],
+            dtype=np.float32,
+        )
+        # Convert joints to radians, scale fingers
+        init_vec[:12] *= np.pi / 180.0
+        init_vec[12:] *= 0.03
+
+        # Repeat across all rows
+        return np.tile(init_vec, (self.runtime_params.action_chunk_size, 1))
+
+
 
     
 

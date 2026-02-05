@@ -27,13 +27,15 @@ class ControllerBridge:
     - policy_update_period: int
     """
 
-    def __init__(self, inference_runtime_config):
+    def __init__(self,
+                 runtime_params, 
+                 inference_runtime_topics_config,):
         """
         Initialize controller bridge for IGRIS_C.
 
         TODO: Implement based on IGRIS_C communication protocol
         Args:
-            inference_runtime_config: Runtime configuration dict
+            
         """
         raise NotImplementedError("IGRIS_C controller bridge implementation pending hardware specs")
 
