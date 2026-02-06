@@ -103,6 +103,7 @@ def start_online_rl(train_config_path, policy_yaml_path, robot, human_reward_lab
         control_iter_cond = Condition(lock)      # For num_control_iters waits
         inference_ready_cond = Condition(lock)   # For inference_ready waits
         stop_event = Event()
+        episode_complete_event = Event()         # For episode completion signaling
         num_control_iters = Value('i', 0, lock=False)
         inference_ready_flag = Value(c_bool, False, lock=False)
 
@@ -116,6 +117,7 @@ def start_online_rl(train_config_path, policy_yaml_path, robot, human_reward_lab
             control_iter_cond=control_iter_cond,
             inference_ready_cond=inference_ready_cond,
             stop_event=stop_event,
+            episode_complete_event=episode_complete_event,
             num_control_iters=num_control_iters,
             inference_ready_flag=inference_ready_flag,
         )
@@ -131,6 +133,7 @@ def start_online_rl(train_config_path, policy_yaml_path, robot, human_reward_lab
             control_iter_cond=control_iter_cond,
             inference_ready_cond=inference_ready_cond,
             stop_event=stop_event,
+            episode_complete_event=episode_complete_event,
             num_control_iters=num_control_iters,
             inference_ready_flag=inference_ready_flag,
         )
@@ -173,6 +176,7 @@ def start_online_rl(train_config_path, policy_yaml_path, robot, human_reward_lab
 
             # Signal actors to stop
             stop_event.set()
+            episode_complete_event.set()  # Wake any waiters on episode_complete
             # Notify both conditions to wake up all waiters
             try:
                 with control_iter_cond:

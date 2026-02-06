@@ -56,6 +56,7 @@ class SharedMemoryManager:
         control_iter_cond: ConditionType,
         inference_ready_cond: ConditionType,
         stop_event: EventType,
+        episode_complete_event: EventType,
         num_control_iters: Value,
         inference_ready_flag: Value,
         is_creator: bool = False,
@@ -76,6 +77,7 @@ class SharedMemoryManager:
         self._control_iter_cond = control_iter_cond
         self._inference_ready_cond = inference_ready_cond
         self._stop_event = stop_event
+        self._episode_complete_event = episode_complete_event
         self._num_control_iters = num_control_iters
         self._inference_ready_flag = inference_ready_flag
 
@@ -91,6 +93,7 @@ class SharedMemoryManager:
         control_iter_cond: ConditionType,
         inference_ready_cond: ConditionType,
         stop_event: EventType,
+        episode_complete_event: EventType,
         num_control_iters: Value,
         inference_ready_flag: Value,
     ) -> SharedMemoryManager:
@@ -104,6 +107,7 @@ class SharedMemoryManager:
             control_iter_cond: Shared Condition for control iteration waits
             inference_ready_cond: Shared Condition for inference ready waits
             stop_event: Shared Event for shutdown signaling
+            episode_complete_event: Shared Event for episode completion signaling
             num_control_iters: Shared Value for control iteration counter
             inference_ready_flag: Shared Value for inference ready signal
 
@@ -119,6 +123,7 @@ class SharedMemoryManager:
             control_iter_cond=control_iter_cond,
             inference_ready_cond=inference_ready_cond,
             stop_event=stop_event,
+            episode_complete_event=episode_complete_event,
             num_control_iters=num_control_iters,
             inference_ready_flag=inference_ready_flag,
             is_creator=False,
@@ -128,24 +133,34 @@ class SharedMemoryManager:
     # Synchronization Methods
     # =========================================================================
 
-    def wait_for_min_actions(self, min_actions: int) -> bool:
-        """Block until control iterations reach threshold.
+    def wait_for_min_actions(self, min_actions: int) -> str:
+        """Block until control iterations reach threshold or episode completes.
 
         Used by InferenceActor to wait until sufficient actions have been
-        executed before running the next inference.
+        executed before running the next inference, or until the episode ends.
 
         Args:
             min_actions: Minimum number of control iterations to wait for
 
         Returns:
-            True if threshold reached, False if stop_event was set
+            'min_actions' - threshold reached, continue inference
+            'episode_complete' - episode ended, handle transition
+            'stop' - shutdown requested
         """
         with self._control_iter_cond:
             self._control_iter_cond.wait_for(
-                lambda: self._stop_event.is_set()
-                or self._num_control_iters.value >= min_actions
+                lambda: (
+                    self._stop_event.is_set()
+                    or self._episode_complete_event.is_set()
+                    or self._num_control_iters.value >= min_actions
+                )
             )
-        return not self._stop_event.is_set()
+
+        if self._stop_event.is_set():
+            return 'stop'
+        if self._episode_complete_event.is_set():
+            return 'episode_complete'
+        return 'min_actions'
 
     def wait_for_inference_ready(self) -> bool:
         """Block until inference actor signals ready.
@@ -181,13 +196,39 @@ class SharedMemoryManager:
         with self._inference_ready_cond:
             self._inference_ready_cond.notify_all()
 
+    def signal_episode_complete(self) -> None:
+        """Signal that the episode for loop has completed.
+
+        Called by ControllerActor after the episode for loop finishes.
+        """
+        self._episode_complete_event.set()
+        with self._control_iter_cond:
+            self._control_iter_cond.notify_all()
+
+    def is_episode_complete(self) -> bool:
+        """Check if episode complete event is set.
+
+        Returns:
+            True if the episode complete event is set
+        """
+        return self._episode_complete_event.is_set()
+
+    def clear_episode_complete(self) -> None:
+        """Clear the episode complete event for new episode.
+
+        Called by ControllerActor after wait_for_inference_ready() returns,
+        before starting a new episode.
+        """
+        self._episode_complete_event.clear()
+
     def notify_step(self) -> None:
         """Wake up any waiting inference actor.
 
         Called by ControllerActor after each control step to potentially
         wake up the inference actor waiting on wait_for_min_actions().
         """
-        
+        with self._control_iter_cond:
+            self._control_iter_cond.notify_all()
 
     # =========================================================================
     # Atomic Read Operations
@@ -339,7 +380,7 @@ class SharedMemoryManager:
     # =========================================================================
 
     def stop_event_is_set(self):
-        return self.stop_event.is_set()
+        return self._stop_event.is_set()
 
     def signal_stop(self) -> None:
         """Signal stop event and wake all waiters."""

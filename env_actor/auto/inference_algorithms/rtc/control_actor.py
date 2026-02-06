@@ -76,6 +76,7 @@ class ControllerActor:
         control_iter_cond: ConditionType,
         inference_ready_cond: ConditionType,
         stop_event: EventType,
+        episode_complete_event: EventType,
         num_control_iters: Any,  # multiprocessing.Value
         inference_ready_flag: Any,  # multiprocessing.Value
     ):
@@ -97,6 +98,7 @@ class ControllerActor:
             control_iter_cond=control_iter_cond,
             inference_ready_cond=inference_ready_cond,
             stop_event=stop_event,
+            episode_complete_event=episode_complete_event,
             num_control_iters=num_control_iters,
             inference_ready_flag=inference_ready_flag,
         )
@@ -143,6 +145,8 @@ class ControllerActor:
             if not self.shm_manager.wait_for_inference_ready():
                 print("Stop event received before inference ready, exiting")
                 return
+            # Clear episode_complete after inference signals ready (ensures handshake)
+            self.shm_manager.clear_episode_complete()
 
             # Episode boundary handling
             if episode >= 0:
@@ -210,3 +214,4 @@ class ControllerActor:
                     time.sleep(sleep_time)
 
             print(f"Episode {episode} finished!")
+            self.shm_manager.signal_episode_complete()

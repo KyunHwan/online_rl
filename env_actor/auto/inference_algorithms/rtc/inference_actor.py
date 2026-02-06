@@ -68,6 +68,7 @@ class InferenceActor:
         control_iter_cond: ConditionType,
         inference_ready_cond: ConditionType,
         stop_event: EventType,
+        episode_complete_event: EventType,
         num_control_iters: Any,  # multiprocessing.Value
         inference_ready_flag: Any,  # multiprocessing.Value
     ):
@@ -98,6 +99,7 @@ class InferenceActor:
             control_iter_cond=control_iter_cond,
             inference_ready_cond=inference_ready_cond,
             stop_event=stop_event,
+            episode_complete_event=episode_complete_event,
             num_control_iters=num_control_iters,
             inference_ready_flag=inference_ready_flag,
         )
@@ -106,25 +108,6 @@ class InferenceActor:
 
         # Extract dimensions from policy
         self.camera_names = self.runtime_params.camera_names
-
-        # Cache normalization tensors
-        # Format: (state_mean, state_std, action_mean, action_std, eps)
-        # norm_tensors = self.policy.normalization_tensors
-        # self.state_mean = norm_tensors[0].to(self.device)
-        # self.state_std = norm_tensors[1].to(self.device)
-        # self.action_mean = norm_tensors[2].to(self.device)
-        # self.action_std = norm_tensors[3].to(self.device)
-        # self.stats_eps = norm_tensors[4]
-
-        # # Expand action stats if needed
-        # if self.action_mean.numel() != self.runtime_params.action_dim:
-        #     self.action_mean = self.action_mean.repeat(
-        #         (self.runtime_params.action_dim + self.action_mean.numel() - 1) // self.action_mean.numel()
-        #     )[: self.runtime_params.action_dim]
-        # if self.action_std.numel() != self.runtime_params.action_dim:
-        #     self.action_std = self.action_std.repeat(
-        #         (self.runtime_params.action_dim + self.action_std.numel() - 1) // self.action_std.numel()
-        #     )[: self.runtime_params.action_dim]
 
         # Control parameters
         self.min_num_actions_executed = 15
@@ -208,49 +191,56 @@ class InferenceActor:
 
         Note: Changed from async to sync since SharedMemoryManager uses
         standard multiprocessing primitives, not asyncio.
+
+        Structure:
+        - Warmup is called once (outside all loops)
+        - Outer loop handles per-episode transitions
+        - Inner loop handles inference iterations within an episode
         """
-        self.shm_manager.set_inference_not_ready()
-        
-        # Warm up CUDA
+        # Warm up CUDA (once, outside all loops)
         print("Warming up CUDA kernels...")
         self._warmup_sync()
 
-        # Signal ready via SharedMemoryManager (direct call, no Ray)
-        print("Signaling inference ready...")
-        self.shm_manager.set_inference_ready()
-
         print("Starting inference loop...")
 
-        while True:
-            # 1. Wait for minimum actions executed (blocks until threshold or stop)
-            if not self.shm_manager.wait_for_min_actions(self.min_num_actions_executed):
-                print("Stop event received, exiting inference loop")
-                break
-            
-            # 2. Atomically read state from SharedMemory (direct call, no Ray)
-            # this is numpy array
-            input_data = self.shm_manager.atomic_read_for_inference()
-            print(f"Inference triggered: {input_data["num_control_iters"]} actions executed")
+        while True:  # Outer loop - per episode
+            # Signal ready for new episode
+            current_weights = ray.get(self.policy_state_manager_handle.get_weights.remote())
+            if current_weights is not None:
+                for model_name, model in self.policy.components.items():
+                    sd_cpu = current_weights[model_name]   # <-- critical fix
+                    missing, unexpected = load_state_dict_cpu_into_module(model, sd_cpu, strict=True)
+                print("Policy weights updated successfully")
 
-            # 4. Normalize observations and prev_action_chunk
-            # should return torch tensor
-            normalized_input_data = self.data_normalization_bridge.normalize_state_action(input_data)
+            print("Signaling inference ready...")
+            self.shm_manager.set_inference_ready()
 
-            cond_memory = self.policy.encode_data(normalized_input_data)
+            while True:  # Inner loop - inference iterations within episode
+                # Wait for minimum actions executed (blocks until threshold, episode_complete, or stop)
+                result = self.shm_manager.wait_for_min_actions(self.min_num_actions_executed)
 
-            # 5. Run guided action chunk inference
-            pred_actions = guided_action_chunk_inference(
-                action_decoder=self.policy['action_decoder'],
-                cond_memory=cond_memory,
-                discrete_semantic_input=None,
-                prev_action_chunk=normalized_input_data['prev_action'],
-                delay=normalized_input_data['est_delay'],
-                executed_steps=normalized_input_data['num_control_iters'],
-                num_ode_sim_steps=5,
-                num_queries=self.runtime_params.action_chunk_size,
-                action_dim=self.runtime_params.action_dim,
-            )
+                if result == 'stop':
+                    print("Stop event received, exiting inference loop")
+                    return  # Exit completely
 
-            # 6. Denormalize and write new action chunk (direct call, no Ray)
-            denormalized_actions = self.data_normalization_bridge.denormalize_action(pred_actions)
-            self.shm_manager.write_action_chunk_n_update_iter_val(denormalized_actions, normalized_input_data['num_control_iters'])
+                if result == 'episode_complete':
+                    print("Episode complete, waiting for next episode")
+                    break  # Exit inner loop, continue to outer loop
+
+                # result == 'min_actions' - proceed with inference
+                self.shm_manager.set_inference_not_ready()
+
+                # Atomically read state from SharedMemory
+                input_data = self.shm_manager.atomic_read_for_inference()
+                print(f"Inference triggered: {input_data['num_control_iters']} actions executed")
+
+                # Normalize observations and prev_action_chunk
+                normalized_input_data = self.data_normalization_bridge.normalize_state_action(input_data)
+
+                pred_actions = self.policy.guided_inference(normalized_input_data)
+
+                # Denormalize and write new action chunk
+                denormalized_actions = self.data_normalization_bridge.denormalize_action(pred_actions)
+                self.shm_manager.write_action_chunk_n_update_iter_val(
+                    denormalized_actions, normalized_input_data['num_control_iters']
+                )
