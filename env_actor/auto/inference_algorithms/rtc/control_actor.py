@@ -27,7 +27,7 @@ from tensordict import TensorDict
 from env_actor.auto.io_interface.controller_interface import ControllerInterface
 from env_actor.episode_recorder.episode_recorder_interface import EpisodeRecorderInterface
 
-from .data_manager.igris_b.shm_manager_bridge import SharedMemoryManager
+from .data_manager.shm_manager_interface import SharedMemoryInterface
 from .data_manager.utils.utils import ShmArraySpec
 
 if TYPE_CHECKING:
@@ -92,7 +92,8 @@ class ControllerActor:
         self.episode_queue_handle = episode_queue_handle
 
         # Create SharedMemoryManager from specs (attaches to existing SharedMemory)
-        self.shm_manager = SharedMemoryManager.attach_from_specs(
+        self.shm_manager = SharedMemoryInterface.attach_from_specs(
+            robot=robot,
             shm_specs=shm_specs,
             lock=lock,
             control_iter_cond=control_iter_cond,

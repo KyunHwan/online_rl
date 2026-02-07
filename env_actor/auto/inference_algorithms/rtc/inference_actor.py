@@ -25,9 +25,9 @@ from env_actor.policy.utils.loader import build_policy
 from env_actor.policy.utils.weight_transfer import load_state_dict_cpu_into_module
 
 from .inference_engine_utils.action_inpainting import guided_action_chunk_inference
-from .data_manager.igris_b.shm_manager_bridge import SharedMemoryManager
+from .data_manager.shm_manager_interface import SharedMemoryInterface
 from .data_manager.utils.utils import ShmArraySpec
-from .data_manager.igris_b.data_normalization_manager import DataNormalizationBridge
+from .data_manager.data_normaliation_interface import DataNormalizationInterface
 
 if TYPE_CHECKING:
     from ray.actor import ActorHandle
@@ -87,13 +87,14 @@ class InferenceActor:
         )
 
         # Freeze all parameters (required for VJP in guided inference)
+        self.policy.eval()
         self.policy.freeze_all_model_params()
 
         # Store policy state manager handle for weight updates
         self.policy_state_manager_handle = policy_state_manager_handle
 
         # Create SharedMemoryManager from specs (attaches to existing SharedMemory)
-        self.shm_manager = SharedMemoryManager.attach_from_specs(
+        self.shm_manager = SharedMemoryInterface.attach_from_specs(
             shm_specs=shm_specs,
             lock=lock,
             control_iter_cond=control_iter_cond,
@@ -104,10 +105,7 @@ class InferenceActor:
             inference_ready_flag=inference_ready_flag,
         )
 
-        self.data_normalization_bridge = DataNormalizationBridge(self.runtime_params.read_stats_file())
-
-        # Extract dimensions from policy
-        self.camera_names = self.runtime_params.camera_names
+        self.data_normalization_bridge = DataNormalizationInterface(self.runtime_params.read_stats_file())
 
         # Control parameters
         self.min_num_actions_executed = 15
@@ -118,55 +116,12 @@ class InferenceActor:
         This ensures the first real inference doesn't incur CUDA
         compilation overhead.
         """
-        img_dtype = torch.float16 if self.device.type == "cuda" else torch.float32
-
-        # Create dummy inputs
-        dummy_robot_obs = torch.zeros(
-            (self.runtime_params.proprio_history_size, self.runtime_params.proprio_state_dim),
-            device=self.device,
-            dtype=torch.float32,
-        )
-        dummy_cam_images = torch.zeros(
-            (1, len(self.camera_names), self.runtime_params.num_img_obs, 3, 1, 1),  # Minimal size
-            device=self.device,
-            dtype=img_dtype,
-        )
-
         with torch.no_grad():
             # Warmup encode_memory
             try:
-                memory = self.policy.encode_memory(
-                    rh=dummy_robot_obs.unsqueeze(0),
-                    cam_images=dummy_cam_images,
-                )
-                # Warmup action_decoder
-                _ = self.policy.body(expert_id=memory.get("expert_id"))(
-                    time=torch.zeros(1, device=self.device),
-                    noise=torch.randn(1, self.runtime_params.action_chunk_size, self.runtime_params.action_dim, device=self.device),
-                    memory_input=memory["memory_input"],
-                    discrete_semantic_input=memory.get("discrete_semantic_input"),
-                )
+                self.policy.warmup()
             except Exception as e:
                 print(f"Warmup encountered error (may be expected for minimal inputs): {e}")
-
-    def _maybe_update_weights(self) -> bool:
-        """Poll PolicyStateManager and apply weight updates if available.
-
-        Returns:
-            True if weights were updated, False otherwise
-        """
-        try:
-            weights_ref = ray.get(self.policy_state_manager_handle.get_weights.remote())
-            if weights_ref is not None:
-                for model_name, model in self.policy.components.items():
-                    if model_name in weights_ref:
-                        sd_cpu = weights_ref[model_name]
-                        load_state_dict_cpu_into_module(model, sd_cpu, strict=True)
-                print("Policy weights updated successfully")
-                return True
-        except Exception as e:
-            print(f"Error updating weights: {e}")
-        return False
 
     def start(self) -> None:
         """Main inference loop - runs until explicitly stopped.
@@ -231,6 +186,7 @@ class InferenceActor:
                 self.shm_manager.set_inference_not_ready()
 
                 # Atomically read state from SharedMemory
+                # should be torch tensor
                 input_data = self.shm_manager.atomic_read_for_inference()
                 print(f"Inference triggered: {input_data['num_control_iters']} actions executed")
 

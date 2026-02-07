@@ -12,7 +12,7 @@ and attached to by Ray actors via the attach_from_specs() factory method.
 from __future__ import annotations
 
 from ctypes import c_bool
-from ..utils.utils import ShmArraySpec, attach_shared_ndarray
+from env_actor.auto.inference_algorithms.rtc.data_manager.utils.utils import ShmArraySpec, attach_shared_ndarray
 from multiprocessing import Value, resource_tracker
 from multiprocessing.shared_memory import SharedMemory
 from typing import TYPE_CHECKING
@@ -238,7 +238,7 @@ class SharedMemoryManager:
         """Atomically read all state needed for inference.
 
         Returns a snapshot of the current state including:
-        - robot_obs_history: Robot observation history (copy)
+        - proprio: Robot observation history (copy)
         - head: Camera image history (copy)
         - left: Camera image history (copy)
         - right: Camera image history (copy)
@@ -247,7 +247,7 @@ class SharedMemoryManager:
         - estimated_delay: Maximum delay from delay queue
 
         Returns:
-            Dict with state snapshot (copies, not references)
+            Dict with state snapshot (copies, not references) as numpy array
         """
         cur_state = {}
         with self._lock:
@@ -379,7 +379,7 @@ class SharedMemoryManager:
     # Lifecycle Methods
     # =========================================================================
 
-    def stop_event_is_set(self):
+    def stop_event_is_set(self) -> bool:
         return self._stop_event.is_set()
 
     def signal_stop(self) -> None:

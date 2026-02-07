@@ -12,3 +12,24 @@ class Policy(Protocol):
     """Interface for inference-time policies built from component modules."""
 
     def __init__(self, components: dict[str, nn.Module], **kwargs: Any) -> None: ...
+
+    def guided_inference(self, input_data: dict[str, nn.Module]):
+        """
+        Uses inpainting technique from Real-Time Execution of Action Chunking Flow Policies
+        https://arxiv.org/pdf/2506.07339
+        """
+        ...
+        
+    def warmup(self) -> None:
+        """
+        This is the warmup that is needed to choose the fastest CUDA algorithm.
+        Used with torch.backends.cudnn.benchmark = True 
+        """
+        ...
+    
+    def freeze_all_model_params(self) -> None: 
+        """
+        Freezes every model parameter
+        """
+        ...
+
