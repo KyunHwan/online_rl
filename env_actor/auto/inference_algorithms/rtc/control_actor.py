@@ -152,8 +152,10 @@ class ControllerActor:
             # Episode boundary handling
             if episode >= 0:
                 print(f"Submitting episode {episode} data...")
-                episodic_data_ref = ray.put(self.episode_recorder.serve_train_data_buffer(episode))
-                self.episode_queue_handle.put(episodic_data_ref, block=True)
+                sub_eps = self.episode_recorder.serve_train_data_buffer(episode)
+                for sub_ep in sub_eps:
+                    sub_ep_data_ref = ray.put(sub_ep)
+                    self.episode_queue_handle.put(sub_ep_data_ref, block=True)
 
             # Initialize new episode
             self.episode_recorder.init_train_data_buffer()
@@ -192,7 +194,6 @@ class ControllerActor:
                 # e. Update SharedMemory (atomic write + increment, direct call)
                 action = self.shm_manager.atomic_write_obs_and_increment_get_action(obs=obs_data, 
                                                                                     action_chunk_size=self.runtime_params.action_chunk_size)
-                self.shm_manager.notify_step()
 
                 # h. Publish action to robot (includes slew-rate limiting)
                 smoothed_joints, fingers = self.controller_interface.publish_action(action, prev_joint)

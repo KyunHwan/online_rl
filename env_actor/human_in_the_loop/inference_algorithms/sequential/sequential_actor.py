@@ -11,11 +11,16 @@ import numpy as np
 from tensordict import TensorDict
 import ray
 
-from env_actor.auto.io_interface.controller_interface import ControllerInterface
+from env_actor.human_in_the_loop.io_interface.controller_interface import ControllerInterface
 from .data_manager.data_manager_interface import DataManagerInterface
 from env_actor.episode_recorder.episode_recorder_interface import EpisodeRecorderInterface
 from env_actor.policy.utils.loader import build_policy
 from env_actor.policy.utils.weight_transfer import load_state_dict_cpu_into_module
+
+# Teleoperation
+from env_actor.human_in_the_loop.action_mux.teleop_provider import IgrisBTeleopProvider
+from env_actor.human_in_the_loop.action_mux.intervention_switch import PedalInterventionSwitch
+from env_actor.human_in_the_loop.action_mux.action_mux import ActionMux
 
 @ray.remote(num_gpus=1)
 class SequentialActor:
@@ -43,19 +48,23 @@ class SequentialActor:
         policy_yaml_path,
         policy_state_manager_handle,
         episode_queue_handle,
+        operator_name="default",
     ):
         """
         Initialize sequential inference engine.
 
         Args:
-            robot_config: dict read from .json or .yaml file 
-                          for igris_b, it's inference_runtime_settings.json in runtime_settings_configs folder
+            runtime_params: RuntimeParams object with HZ, action_dim, etc.
+            inference_runtime_topics_config: dict with ROS topic config
             robot: str ("igris_b" or "igris_c")
             policy_yaml_path: str file path to policy yaml file.
+            policy_state_manager_handle: Ray actor handle for weight updates
+            episode_queue_handle: Ray queue handle for episode data
+            operator_name: str operator name for Manus glove calibration
         """
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.policy = build_policy(policy_yaml_path=policy_yaml_path, map_location=self.device)
-        self.controller_interface = ControllerInterface(runtime_params=runtime_params, 
+        self.controller_interface = ControllerInterface(runtime_params=runtime_params,
                                                         inference_runtime_topics_config=inference_runtime_topics_config,
                                                         robot=robot)
         self.data_manager_interface = DataManagerInterface(runtime_params=runtime_params, robot=robot)
@@ -63,6 +72,18 @@ class SequentialActor:
 
         self.policy_state_manager_handle = policy_state_manager_handle
         self.episode_queue_handle = episode_queue_handle
+
+        # ActionMux: instant switching between policy and teleop
+        robot_id = inference_runtime_topics_config["robot_id"]
+        teleop_provider = IgrisBTeleopProvider(
+            self.controller_interface.ros_executor,
+            operator_name=operator_name,
+        )
+        intervention_switch = PedalInterventionSwitch(
+            self.controller_interface.ros_node,
+            robot_id,
+        )
+        self.action_mux = ActionMux(teleop_provider, intervention_switch)
 
     def start(self) -> None:
         # 2. Start state readers (cameras and proprioception)
@@ -85,9 +106,10 @@ class SequentialActor:
                         sd_cpu = current_weights[model_name]   # <-- critical fix
                         missing, unexpected = load_state_dict_cpu_into_module(model, sd_cpu, strict=True)
 
-                episodic_data_ref = ray.put(self.episode_recorder.serve_train_data_buffer(episode))
-                self.episode_queue_handle.put(episodic_data_ref,
-                                              block=True)
+                sub_eps = self.episode_recorder.serve_train_data_buffer(episode)
+                for sub_ep in sub_eps:
+                    sub_ep_data_ref = ray.put(sub_ep)
+                    self.episode_queue_handle.put(sub_ep_data_ref, block=True)
                 
             self.episode_recorder.init_train_data_buffer()
 
@@ -137,16 +159,27 @@ class SequentialActor:
                     # Buffer and denormalize action in data manager
                     self.data_manager_interface.buffer_action_chunk(policy_output, t)
 
-                # d. Get current action from data manager (already denormalized)
-                action = self.data_manager_interface.get_current_action(t)
+                # d. Get policy action from data manager (always runs, even in teleop)
+                policy_action = self.data_manager_interface.get_current_action(t)
 
-                # e. Publish action to robot (includes slew-rate limiting)
+                # e. Select action via ActionMux (never blocks)
+                action, control_mode = self.action_mux.select(policy_action)
+
+                # f. Publish selected action to robot (includes slew-rate limiting)
                 smoothed_joints, fingers = self.controller_interface.publish_action(
-                                                                        action,
-                                                                        self.data_manager_interface.prev_joint
-                                                                    )
-                self.episode_recorder.add_action(np.concatenate([np.concatenate([smoothed_joints[6:], smoothed_joints[:6]]),
-                                                                               fingers]))
+                    action, self.data_manager_interface.prev_joint
+                )
+
+                # g. Record actual action sent to robot + metadata
+                actual_action = np.concatenate([
+                    np.concatenate([smoothed_joints[6:], smoothed_joints[:6]]),
+                    fingers,
+                ])
+
+                self.episode_recorder.add_action(
+                    actual_action,
+                    control_mode=int(control_mode),
+                )
 
                 # f. Update previous joint state in data manager
                 self.data_manager_interface.update_prev_joint(smoothed_joints)
@@ -158,7 +191,7 @@ class SequentialActor:
                     time.sleep(sleep_time)
 
             print("Episode finished !!")
-
+            self.action_mux.set_control_mode_to_policy()
             episode += 1
 
 

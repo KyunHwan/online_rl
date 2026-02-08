@@ -12,8 +12,18 @@ class ControllerInterface:
                                                   inference_runtime_topics_config=inference_runtime_topics_config,)
 
     @property
+    def ros_node(self):
+        """Expose the ROS node for adding subscriptions."""
+        return self.controller_bridge.ros_node
+
+    @property
+    def ros_executor(self):
+        """Expose the executor for adding ROS nodes."""
+        return self.controller_bridge.ros_executor
+
+    @property
     def DT(self):
-        return 1.0 / self.controller_bridge.DT
+        return self.controller_bridge.DT
     
     @property
     def policy_update_period(self):

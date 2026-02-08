@@ -129,7 +129,7 @@ class DxlMasterArm(Node):
         self.sync_write_led(1,self.all_ids())
         self.sync_write_torque(0,self.all_ids())
                 
-        self.joint_target_pub = self.create_publisher(JointState, '/igris_b/target_joints', 100)
+        # self.joint_target_pub = self.create_publisher(JointState, '/igris_b/target_joints', 100)
         
         self.timer=self.create_timer(1/HZ,self.sync_read_position) 
     
@@ -170,11 +170,11 @@ class DxlMasterArm(Node):
                     self.q[name][i] = position
         
         
-        joint_msg = JointState()
-        joint_msg.header.stamp = self.get_clock().now().to_msg()
-        joint_msg.name = [f"r_joint_{i}" for i in range(1, 7)] + [f"l_joint_{i}" for i in range(1, 7)]
-        joint_msg.position = list(self.q['right_arm'])+list(self.q['left_arm'])
-        self.joint_target_pub.publish(joint_msg)
+        # joint_msg = JointState()
+        # joint_msg.header.stamp = self.get_clock().now().to_msg()
+        # joint_msg.name = [f"r_joint_{i}" for i in range(1, 7)] + [f"l_joint_{i}" for i in range(1, 7)]
+        # joint_msg.position = list(self.q['right_arm'])+list(self.q['left_arm'])
+        # self.joint_target_pub.publish(joint_msg)
         
     def sync_write_led(self, status,ids):
         data = self.divide_to_bytes(status, LEN_LED)
@@ -283,6 +283,11 @@ class DxlMasterArm(Node):
         dxl = DxlMasterArm.degree_to_dxl(position/DEG2RAD)
         return dxl 
     
+    def get_joint_positions(self) -> np.ndarray:
+        """Return cached joint positions as [right*6, left*6] in radians.
+        Updated at 25Hz by sync_read_position timer callback."""
+        return np.concatenate([self.q['right_arm'], self.q['left_arm']])
+
     def shutdown(self):
         self.sync_write_led(0,self.all_ids())
         

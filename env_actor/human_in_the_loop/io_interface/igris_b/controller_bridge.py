@@ -49,6 +49,16 @@ class ControllerBridge:
         self.recorder_thread = None
 
     @property
+    def ros_node(self):
+        """Expose the GenericRecorder ROS node for adding subscriptions."""
+        return self.input_recorder
+
+    @property
+    def ros_executor(self):
+        """Expose the SingleThreadedExecutor for adding nodes."""
+        return self.executor
+
+    @property
     def DT(self):
         return 1.0 / self.runtime_params.HZ
     

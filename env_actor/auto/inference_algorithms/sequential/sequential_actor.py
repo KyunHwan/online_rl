@@ -85,9 +85,10 @@ class SequentialActor:
                         sd_cpu = current_weights[model_name]   # <-- critical fix
                         missing, unexpected = load_state_dict_cpu_into_module(model, sd_cpu, strict=True)
 
-                episodic_data_ref = ray.put(self.episode_recorder.serve_train_data_buffer(episode))
-                self.episode_queue_handle.put(episodic_data_ref,
-                                              block=True)
+                sub_eps = self.episode_recorder.serve_train_data_buffer(episode)
+                for sub_ep in sub_eps:
+                    sub_ep_data_ref = ray.put(sub_ep)
+                    self.episode_queue_handle.put(sub_ep_data_ref, block=True)
                 
             self.episode_recorder.init_train_data_buffer()
 

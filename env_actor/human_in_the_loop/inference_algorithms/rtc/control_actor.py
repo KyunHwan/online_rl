@@ -30,6 +30,11 @@ from env_actor.episode_recorder.episode_recorder_interface import EpisodeRecorde
 from .data_manager.shm_manager_interface import SharedMemoryInterface
 from .data_manager.utils.utils import ShmArraySpec
 
+# Teleoperation
+from env_actor.human_in_the_loop.action_mux.teleop_provider import IgrisBTeleopProvider
+from env_actor.human_in_the_loop.action_mux.intervention_switch import PedalInterventionSwitch
+from env_actor.human_in_the_loop.action_mux.action_mux import ActionMux
+
 if TYPE_CHECKING:
     from ray.actor import ActorHandle
 
@@ -79,6 +84,7 @@ class ControllerActor:
         episode_complete_event: EventType,
         num_control_iters: Any,  # multiprocessing.Value
         inference_ready_flag: Any,  # multiprocessing.Value
+        operator_name: str='default'
     ):
         """Initialize the controller actor."""
         # Initialize interfaces
@@ -106,6 +112,18 @@ class ControllerActor:
 
         # Episode configuration
         self.episode_length = 9000  # Control steps per episode
+
+        # ActionMux: instant switching between policy and teleop
+        robot_id = inference_runtime_topics_config["robot_id"]
+        teleop_provider = IgrisBTeleopProvider(
+            self.controller_interface.ros_executor,
+            operator_name=operator_name,
+        )
+        intervention_switch = PedalInterventionSwitch(
+            self.controller_interface.ros_node,
+            robot_id,
+        )
+        self.action_mux = ActionMux(teleop_provider, intervention_switch)
 
     def start(self) -> None:
         """Main control loop - runs episodes continuously.
@@ -152,8 +170,10 @@ class ControllerActor:
             # Episode boundary handling
             if episode >= 0:
                 print(f"Submitting episode {episode} data...")
-                episodic_data_ref = ray.put(self.episode_recorder.serve_train_data_buffer(episode))
-                self.episode_queue_handle.put(episodic_data_ref, block=True)
+                sub_eps = self.episode_recorder.serve_train_data_buffer(episode)
+                for sub_ep in sub_eps:
+                    sub_ep_data_ref = ray.put(sub_ep)
+                    self.episode_queue_handle.put(sub_ep_data_ref, block=True)
 
             # Initialize new episode
             self.episode_recorder.init_train_data_buffer()
@@ -190,20 +210,26 @@ class ControllerActor:
                 self.episode_recorder.add_obs_state(obs_data)
 
                 # e. Update SharedMemory (atomic write + increment, direct call)
-                action = self.shm_manager.atomic_write_obs_and_increment_get_action(obs=obs_data, 
+                # Notifies cond_step
+                policy_action = self.shm_manager.atomic_write_obs_and_increment_get_action(obs=obs_data, 
                                                                                     action_chunk_size=self.runtime_params.action_chunk_size)
-                self.shm_manager.notify_step()
+
+                action, control_mode = self.action_mux.select(policy_action)
 
                 # h. Publish action to robot (includes slew-rate limiting)
                 smoothed_joints, fingers = self.controller_interface.publish_action(action, prev_joint)
 
                 # i. Record action (reorder to match training format)
                 # Format: [L joints 6] + [R joints 6] + [fingers 12]
-                recorded_action = np.concatenate([
+                actual_action = np.concatenate([
                     np.concatenate([smoothed_joints[6:], smoothed_joints[:6]]),
                     fingers,
                 ])
-                self.episode_recorder.add_action(recorded_action)
+
+                self.episode_recorder.add_action(
+                    actual_action,
+                    control_mode=int(control_mode),
+                )
 
                 # j. Update previous joint state
                 prev_joint = smoothed_joints
@@ -215,4 +241,5 @@ class ControllerActor:
                     time.sleep(sleep_time)
 
             print(f"Episode {episode} finished!")
+            self.action_mux.set_control_mode_to_policy()
             self.shm_manager.signal_episode_complete()

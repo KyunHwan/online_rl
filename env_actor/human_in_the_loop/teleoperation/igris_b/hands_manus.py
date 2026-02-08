@@ -66,16 +66,16 @@ def invert_normalize_value(value, min_val, max_val, target_min=0.0, target_max=1
     return normalized_val
 
 class ManusUDPReceiver(Node):
-    def __init__(self):
+    def __init__(self, operator_name: str | None = None):
         super().__init__('manus_udp_receiver')
-        
+
         # Declare parameters
         self.declare_parameter('left_glove_port', 19901)
         self.declare_parameter('right_glove_port', 19902)
         self.declare_parameter('publish_rate', 100.0)
 
-        # Operator name (REQUIRED)
-        self.declare_parameter('operator_name', '')
+        # Operator name (accept direct arg or fall back to ROS parameter)
+        self.declare_parameter('operator_name', operator_name or '')
         operator_name = self.get_parameter('operator_name').value
 
         if operator_name == '':
@@ -139,18 +139,18 @@ class ManusUDPReceiver(Node):
         self.publish_rate = self.get_parameter('publish_rate').value
         
         # Publishers
-        self.left_pose_pub = self.create_publisher(
-            PoseArray, 'left_glove/finger_poses_raw', 10
-        )
-        self.right_pose_pub = self.create_publisher(
-            PoseArray, 'right_glove/finger_poses_raw', 10
-        )
-        self.target_finger_pub = self.create_publisher(
-            Float32MultiArray, '/finger_target', 10
-        )
-        self.joint_state_pub = self.create_publisher(
-            JointState, '/joint_states', 10
-        )
+        # self.left_pose_pub = self.create_publisher(
+        #     PoseArray, 'left_glove/finger_poses_raw', 10
+        # )
+        # self.right_pose_pub = self.create_publisher(
+        #     PoseArray, 'right_glove/finger_poses_raw', 10
+        # )
+        # self.target_finger_pub = self.create_publisher(
+        #     Float32MultiArray, '/finger_target', 10
+        # )
+        # self.joint_state_pub = self.create_publisher(
+        #     JointState, '/joint_states', 10
+        # )
         
         # Data storage
         self.left_data = None
@@ -159,9 +159,9 @@ class ManusUDPReceiver(Node):
         self.right_lock = threading.Lock()
 
         # Timer
-        self.timer = self.create_timer(
-            1.0 / self.publish_rate, self.publish_data
-        )
+        # self.timer = self.create_timer(
+        #     1.0 / self.publish_rate, self.publish_data
+        # )
 
         # Start UDP listeners
         self.start_udp_listeners()
@@ -216,40 +216,41 @@ class ManusUDPReceiver(Node):
                 continue
     
     def publish_data(self):
-        """Publish glove data as ROS2 messages"""
-        current_time = self.get_clock().now()
+        # """Publish glove data as ROS2 messages"""
+        # current_time = self.get_clock().now()
         
-        # Publish left glove data
-        if self.left_data is not None:
-            with self.left_lock:
-                left_values = self.left_data.copy()
+        # # Publish left glove data
+        # if self.left_data is not None:
+        #     with self.left_lock:
+        #         left_values = self.left_data.copy()
             
-            # Publish finger poses
-            left_pose_msg = self.create_pose_array_msg('left_glove', left_values, current_time)
-            self.left_pose_pub.publish(left_pose_msg)
+        #     # Publish finger poses
+        #     left_pose_msg = self.create_pose_array_msg('left_glove', left_values, current_time)
+        #     self.left_pose_pub.publish(left_pose_msg)
         
-        # Publish right glove data
-        if self.right_data is not None:
-            with self.right_lock:
-                right_values = self.right_data.copy()
+        # # Publish right glove data
+        # if self.right_data is not None:
+        #     with self.right_lock:
+        #         right_values = self.right_data.copy()
             
-            # Publish finger poses
-            right_pose_msg = self.create_pose_array_msg('right_glove', right_values, current_time)
-            self.right_pose_pub.publish(right_pose_msg)
+        #     # Publish finger poses
+        #     right_pose_msg = self.create_pose_array_msg('right_glove', right_values, current_time)
+        #     self.right_pose_pub.publish(right_pose_msg)
             
-        if self.left_data and self.right_data:
-            with self.left_lock:
-                left_values = self.left_data.copy()
-            with self.right_lock:
-                right_values = self.right_data.copy()
-            target_finger_msg = self.create_target_finger_msg(left_values, right_values)
-            self.target_finger_pub.publish(target_finger_msg)
-            #joint_state_msg = self.create_target_finger_msg(left_values, right_values)
-            joint_state_msg = self.create_joint_state_msg(left_values, right_values, current_time)
-            # self.joint_state_pub.publish(joint_state_msg)
+        # if self.left_data and self.right_data:
+        #     with self.left_lock:
+        #         left_values = self.left_data.copy()
+        #     with self.right_lock:
+        #         right_values = self.right_data.copy()
+        #     target_finger_msg = self.create_target_finger_msg(left_values, right_values)
+        #     self.target_finger_pub.publish(target_finger_msg)
+        #     joint_state_msg = self.create_target_finger_msg(left_values, right_values)
+        #     joint_state_msg = self.create_joint_state_msg(left_values, right_values, current_time)
+        #     self.joint_state_pub.publish(joint_state_msg)
             
-            self.get_logger().info(f'Left data [{len(left_values)}]')
-            self.get_logger().info(f'Right data [{len(right_values)}]')
+        #     self.get_logger().info(f'Left data [{len(left_values)}]')
+        #     self.get_logger().info(f'Right data [{len(right_values)}]')
+        return None
             
     def create_target_finger_msg(self, left_values, right_values):
         """Create a simplified Float32MultiArray message with a single value per finger."""
@@ -545,6 +546,20 @@ class ManusUDPReceiver(Node):
             msg.poses.append(pose)
         
         return msg
+
+    def get_target_fingers(self) -> np.ndarray | None:
+        """Return cached 12D normalized finger array [right*6, left*6] or None.
+        Reuses create_target_finger_msg() logic for calibration/normalization."""
+        if self.left_data is None or self.right_data is None:
+            return None
+        with self.left_lock:
+            left = self.left_data.copy()
+        with self.right_lock:
+            right = self.right_data.copy()
+        if len(left) < 20 or len(right) < 20:
+            return None
+        msg = self.create_target_finger_msg(left, right)
+        return np.array(msg.data, dtype=np.float32)
 
 
 def main(args=None):

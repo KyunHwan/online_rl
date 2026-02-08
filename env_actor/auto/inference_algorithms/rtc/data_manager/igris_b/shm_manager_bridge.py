@@ -296,7 +296,11 @@ class SharedMemoryManager:
                 else:
                     np.copyto(self._shm_array_dict[key], obs[key], casting='no')
             action_idx = min(self._num_control_iters.value - 1, action_chunk_size - 1)
-            return self._shm_array_dict['action'][action_idx].copy()
+            action = self._shm_array_dict['action'][action_idx].copy()
+            
+            self.notify_step()
+
+            return action
 
     def write_action_chunk_n_update_iter_val(self, action_chunk: np.ndarray, executed: int) -> None:
         """Write new action chunk and update tracking.

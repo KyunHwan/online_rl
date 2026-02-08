@@ -10,8 +10,6 @@ if TYPE_CHECKING:
     from multiprocessing.synchronize import Event as EventType
     from multiprocessing.synchronize import RLock as RLockType
 
-
-
 class SharedMemoryInterface:
     def __init__(self, 
                  robot: str,

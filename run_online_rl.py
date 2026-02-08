@@ -22,6 +22,8 @@ robot_obs_history_dtype = np.float32
 cam_images_dtype = np.uint8
 action_chunk_dtype = np.float32
 
+RAYQUEUE_MAXSIZE=25
+
 @ray.remote(num_gpus=2)
 def run_training(train_config_path: str):
     """Run TorchTrainer.fit() in a Ray worker process so the GUI thread stays free."""
@@ -51,7 +53,7 @@ def start_online_rl(train_config_path, policy_yaml_path, robot, human_reward_lab
     
     # Queue is the bridge between the controller and the reward labeler
     # via which the data reaches the replay buffer.
-    episode_queue = RayQueue(maxsize=10) # This sets the maxsize of the Queue to be 10 elements
+    episode_queue = RayQueue(maxsize=RAYQUEUE_MAXSIZE) # This sets the maxsize of the Queue to be 10 elements
 
     policy_state_manager = PolicyStateManagerActor.options(name="policy_state_manager").remote()
     replay_buffer = ReplayBufferActor.options(name="replay_buffer").remote()
