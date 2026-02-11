@@ -111,7 +111,7 @@ class SharedMemoryInterface:
                                                                    action_chunk_size=action_chunk_size)
         
     def write_action_chunk_n_update_iter_val(self, action_chunk: np.ndarray, executed: int) -> None:
-        self.shm_manager.write_action_chunk_n_update_iter_val(action_chunk=action_chunk, exectued=executed)
+        self.shm_manager.write_action_chunk_n_update_iter_val(action_chunk=action_chunk, executed=executed)
     
     def init_action_chunk(self) -> None:
         self.shm_manager.init_action_chunk()

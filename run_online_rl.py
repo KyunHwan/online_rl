@@ -1,6 +1,7 @@
 import os
 import sys
 import argparse
+import json
 from ctypes import c_bool
 from multiprocessing import Condition, Event, RLock, Value
 
@@ -75,7 +76,15 @@ def start_online_rl(train_config_path, policy_yaml_path, robot, human_reward_lab
         from env_actor.runtime_settings_configs.igris_c.inference_runtime_params import RuntimeParams
     else:
         raise ValueError(f"Unknown robot: {robot}")
+    
+    if isinstance(inference_runtime_params_config, str):
+        with open(inference_runtime_params_config, 'r') as f:
+            inference_runtime_params_config = json.load(f)
     runtime_params = RuntimeParams(inference_runtime_params_config)
+
+    if isinstance(inference_runtime_topics_config, str):
+        with open(inference_runtime_topics_config, 'r') as f:
+            inference_runtime_topics_config = json.load(f)
 
     # RTC (Real-Time Action Chunking)
     if inference_algorithm == 'rtc':
