@@ -24,16 +24,9 @@ import numpy as np
 import ray
 from tensordict import TensorDict
 
-from env_actor.auto.io_interface.controller_interface import ControllerInterface
-from env_actor.episode_recorder.episode_recorder_interface import EpisodeRecorderInterface
 
-from .data_manager.shm_manager_interface import SharedMemoryInterface
+
 from .data_manager.utils.utils import ShmArraySpec
-
-# Teleoperation
-from env_actor.human_in_the_loop.action_mux.teleop_provider import IgrisBTeleopProvider
-from env_actor.human_in_the_loop.action_mux.intervention_switch import PedalInterventionSwitch
-from env_actor.human_in_the_loop.action_mux.action_mux import ActionMux
 
 if TYPE_CHECKING:
     from ray.actor import ActorHandle
@@ -86,6 +79,14 @@ class ControllerActor:
         inference_ready_flag: Any,  # multiprocessing.Value
         operator_name: str='default'
     ):
+        from env_actor.auto.io_interface.controller_interface import ControllerInterface
+        from env_actor.episode_recorder.episode_recorder_interface import EpisodeRecorderInterface
+
+        from .data_manager.shm_manager_interface import SharedMemoryInterface
+        # Teleoperation
+        from env_actor.human_in_the_loop.action_mux.teleop_provider import IgrisBTeleopProvider
+        from env_actor.human_in_the_loop.action_mux.intervention_switch import PedalInterventionSwitch
+        from env_actor.human_in_the_loop.action_mux.action_mux import ActionMux
         """Initialize the controller actor."""
         # Initialize interfaces
         self.runtime_params = runtime_params

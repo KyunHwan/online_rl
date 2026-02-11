@@ -13,6 +13,7 @@ from .intervention_switch import InterventionSwitch, ControlMode
 class ActionMux:
     """Selects between policy and teleop action each tick. Never blocks."""
 
+
     def __init__(self, teleop_provider: TeleopProvider, intervention_switch: InterventionSwitch):
         self._teleop = teleop_provider
         self._switch = intervention_switch

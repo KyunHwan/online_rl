@@ -17,17 +17,18 @@ from multiprocessing.synchronize import Event as EventType
 from multiprocessing.synchronize import RLock as RLockType
 from typing import TYPE_CHECKING, Any
 
-import numpy as np
+
 import ray
 import torch
+import numpy as np
+
+from .data_manager.utils.utils import ShmArraySpec
 
 from env_actor.policy.utils.loader import build_policy
 from env_actor.policy.utils.weight_transfer import load_state_dict_cpu_into_module
 
 from .inference_engine_utils.action_inpainting import guided_action_chunk_inference
-from .data_manager.shm_manager_interface import SharedMemoryInterface
-from .data_manager.utils.utils import ShmArraySpec
-from .data_manager.data_normaliation_interface import DataNormalizationInterface
+
 
 if TYPE_CHECKING:
     from ray.actor import ActorHandle
@@ -57,6 +58,7 @@ class InferenceActor:
         num_control_iters: Shared Value for control iteration counter
         inference_ready_flag: Shared Value for inference ready signal
     """
+    
 
     def __init__(
         self,
@@ -72,6 +74,9 @@ class InferenceActor:
         num_control_iters: Any,  # multiprocessing.Value
         inference_ready_flag: Any,  # multiprocessing.Value
     ):
+        from .data_manager.shm_manager_interface import SharedMemoryInterface
+        from .data_manager.data_normalization_interface import DataNormalizationInterface
+        
         self.runtime_params = runtime_params
 
         """Initialize the inference actor."""
@@ -110,19 +115,6 @@ class InferenceActor:
         # Control parameters
         self.min_num_actions_executed = 15
 
-    def _warmup_sync(self) -> None:
-        """Warm up CUDA with dummy inference to initialize kernels.
-
-        This ensures the first real inference doesn't incur CUDA
-        compilation overhead.
-        """
-        with torch.no_grad():
-            # Warmup encode_memory
-            try:
-                self.policy.warmup()
-            except Exception as e:
-                print(f"Warmup encountered error (may be expected for minimal inputs): {e}")
-
     def start(self) -> None:
         """Main inference loop - runs until explicitly stopped.
 
@@ -154,7 +146,12 @@ class InferenceActor:
         """
         # Warm up CUDA (once, outside all loops)
         print("Warming up CUDA kernels...")
-        self._warmup_sync()
+        with torch.no_grad():
+            # Warmup encode_memory
+            try:
+                self.policy.warmup()
+            except Exception as e:
+                print(f"Warmup encountered error (may be expected for minimal inputs): {e}")
 
         print("Starting inference loop...")
 

@@ -14,20 +14,20 @@ Key responsibilities:
 """
 from __future__ import annotations
 
+
+import ray
+from typing import TYPE_CHECKING, Any
+from tensordict import TensorDict
+
 import time
 from multiprocessing.synchronize import Condition as ConditionType
 from multiprocessing.synchronize import Event as EventType
 from multiprocessing.synchronize import RLock as RLockType
-from typing import TYPE_CHECKING, Any
+
 
 import numpy as np
-import ray
-from tensordict import TensorDict
 
-from env_actor.auto.io_interface.controller_interface import ControllerInterface
-from env_actor.episode_recorder.episode_recorder_interface import EpisodeRecorderInterface
 
-from .data_manager.shm_manager_interface import SharedMemoryInterface
 from .data_manager.utils.utils import ShmArraySpec
 
 if TYPE_CHECKING:
@@ -80,6 +80,10 @@ class ControllerActor:
         num_control_iters: Any,  # multiprocessing.Value
         inference_ready_flag: Any,  # multiprocessing.Value
     ):
+        from env_actor.auto.io_interface.controller_interface import ControllerInterface
+        from env_actor.episode_recorder.episode_recorder_interface import EpisodeRecorderInterface
+
+        from .data_manager.shm_manager_interface import SharedMemoryInterface
         """Initialize the controller actor."""
         # Initialize interfaces
         self.runtime_params = runtime_params

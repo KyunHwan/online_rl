@@ -5,15 +5,14 @@ Orchestrates the main control loop for sequential inference.
 Simple orchestration: Controller -> DataManager -> Policy -> DataManager -> Controller
 """
 
+
+import ray
+
 import time
 import torch
 import numpy as np
 from tensordict import TensorDict
-import ray
 
-from env_actor.auto.io_interface.controller_interface import ControllerInterface
-from .data_manager.data_manager_interface import DataManagerInterface
-from env_actor.episode_recorder.episode_recorder_interface import EpisodeRecorderInterface
 from env_actor.policy.utils.loader import build_policy
 from env_actor.policy.utils.weight_transfer import load_state_dict_cpu_into_module
 
@@ -35,6 +34,7 @@ class SequentialActor:
     - Orchestration (no processing logic)
     """
 
+
     def __init__(
         self,
         runtime_params,
@@ -53,6 +53,10 @@ class SequentialActor:
             robot: str ("igris_b" or "igris_c")
             policy_yaml_path: str file path to policy yaml file.
         """
+        from env_actor.auto.io_interface.controller_interface import ControllerInterface
+        from .data_manager.data_manager_interface import DataManagerInterface
+        from env_actor.episode_recorder.episode_recorder_interface import EpisodeRecorderInterface
+        
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.policy = build_policy(policy_yaml_path=policy_yaml_path, map_location=self.device)
         self.controller_interface = ControllerInterface(runtime_params=runtime_params, 
