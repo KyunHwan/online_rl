@@ -6,6 +6,13 @@ from multiprocessing import Condition, Event, RLock, Value
 
 import torch
 
+if __name__ == "__main__":
+    try:
+        torch.multiprocessing.set_start_method('spawn')
+    except RuntimeError as e:
+        print(f"WARNING: Could not set multiprocessing start method: {e}")
+        print(f"Current method: {torch.multiprocessing.get_start_method()}")
+
 import ray
 from ray.util.queue import Queue as RayQueue
 from ray.train.torch import TorchTrainer
@@ -24,13 +31,13 @@ action_chunk_dtype = np.float32
 
 RAYQUEUE_MAXSIZE=25
 
-@ray.remote(num_gpus=2)
+@ray.remote()#num_gpus=4)
 def run_training(train_config_path: str):
     """Run TorchTrainer.fit() in a Ray worker process so the GUI thread stays free."""
     print("Running TorchTrainer...")
     # Distributed training
     dist_train_setting_config = ScalingConfig(
-        num_workers=2,
+        num_workers=4,
         use_gpu=True,
     )
     online_trainer = TorchTrainer(
@@ -48,32 +55,34 @@ def start_online_rl(train_config_path, policy_yaml_path, robot, human_reward_lab
     # Initialize Ray
     if ray.is_initialized():
         ray.shutdown()
-    ray.init(runtime_env={"working_dir": os.getcwd()},
+    ray.init(address="auto",
              namespace="online_rl")
     
     # Queue is the bridge between the controller and the reward labeler
     # via which the data reaches the replay buffer.
     episode_queue = RayQueue(maxsize=RAYQUEUE_MAXSIZE) # This sets the maxsize of the Queue to be 10 elements
 
-    policy_state_manager = PolicyStateManagerActor.options(name="policy_state_manager").remote()
-    replay_buffer = ReplayBufferActor.options(name="replay_buffer").remote()
+    policy_state_manager = PolicyStateManagerActor.options(resources={"training_pc": 1},
+                                                           name="policy_state_manager").remote()
+    replay_buffer = ReplayBufferActor.options(resources={"training_pc": 1},
+                                              name="replay_buffer").remote()
 
     # Environment Actor
+    # Load RuntimeParams to get dimensions for SharedMemory
+    if robot == "igris_b":
+        from env_actor.runtime_settings_configs.igris_b.inference_runtime_params import RuntimeParams
+    elif robot == "igris_c":
+        from env_actor.runtime_settings_configs.igris_c.inference_runtime_params import RuntimeParams
+    else:
+        raise ValueError(f"Unknown robot: {robot}")
+    runtime_params = RuntimeParams(inference_runtime_params_config)
+
     # RTC (Real-Time Action Chunking)
     if inference_algorithm == 'rtc':
         from env_actor.auto.inference_algorithms.rtc.control_actor import ControllerActor as RTCControllerActor
         from env_actor.auto.inference_algorithms.rtc.inference_actor import InferenceActor as RTCInferenceActor
         from env_actor.auto.inference_algorithms.rtc.data_manager.utils.utils import create_shared_ndarray
 
-        # Load RuntimeParams to get dimensions for SharedMemory
-        if robot == "igris_b":
-            from env_actor.runtime_settings_configs.igris_b.inference_runtime_params import RuntimeParams
-        elif robot == "igris_c":
-            from env_actor.runtime_settings_configs.igris_c.inference_runtime_params import RuntimeParams
-        else:
-            raise ValueError(f"Unknown robot: {robot}")
-
-        runtime_params = RuntimeParams(inference_runtime_params_config)
 
         # Create SharedMemory blocks in parent process
         rob_shm, _, rob_spec = create_shared_ndarray(
@@ -110,35 +119,39 @@ def start_online_rl(train_config_path, policy_yaml_path, robot, human_reward_lab
         inference_ready_flag = Value(c_bool, False, lock=False)
 
         # Create inference actor (GPU-resident) with SharedMemory specs
-        inference_engine = RTCInferenceActor.remote(
-            runtime_params=runtime_params,
-            policy_yaml_path=policy_yaml_path,
-            policy_state_manager_handle=policy_state_manager,
-            shm_specs=shm_specs,
-            lock=lock,
-            control_iter_cond=control_iter_cond,
-            inference_ready_cond=inference_ready_cond,
-            stop_event=stop_event,
-            episode_complete_event=episode_complete_event,
-            num_control_iters=num_control_iters,
-            inference_ready_flag=inference_ready_flag,
-        )
+        inference_engine = RTCInferenceActor.\
+                        options(resources={"inference_pc": 1}).\
+                        remote(
+                            runtime_params=runtime_params,
+                            policy_yaml_path=policy_yaml_path,
+                            policy_state_manager_handle=policy_state_manager,
+                            shm_specs=shm_specs,
+                            lock=lock,
+                            control_iter_cond=control_iter_cond,
+                            inference_ready_cond=inference_ready_cond,
+                            stop_event=stop_event,
+                            episode_complete_event=episode_complete_event,
+                            num_control_iters=num_control_iters,
+                            inference_ready_flag=inference_ready_flag,
+                        )
 
         # Create controller actor (Robot I/O) with SharedMemory specs
-        controller = RTCControllerActor.remote(
-            runtime_params=runtime_params,
-            inference_runtime_topics_config=inference_runtime_topics_config,
-            robot=robot,
-            episode_queue_handle=episode_queue,
-            shm_specs=shm_specs,
-            lock=lock,
-            control_iter_cond=control_iter_cond,
-            inference_ready_cond=inference_ready_cond,
-            stop_event=stop_event,
-            episode_complete_event=episode_complete_event,
-            num_control_iters=num_control_iters,
-            inference_ready_flag=inference_ready_flag,
-        )
+        controller = RTCControllerActor.\
+                        options(resources={"inference_pc": 1}).\
+                        remote(
+                            runtime_params=runtime_params,
+                            inference_runtime_topics_config=inference_runtime_topics_config,
+                            robot=robot,
+                            episode_queue_handle=episode_queue,
+                            shm_specs=shm_specs,
+                            lock=lock,
+                            control_iter_cond=control_iter_cond,
+                            inference_ready_cond=inference_ready_cond,
+                            stop_event=stop_event,
+                            episode_complete_event=episode_complete_event,
+                            num_control_iters=num_control_iters,
+                            inference_ready_flag=inference_ready_flag,
+                        )
 
         # Start the RTC actors
         inference_engine.start.remote()
@@ -146,27 +159,33 @@ def start_online_rl(train_config_path, policy_yaml_path, robot, human_reward_lab
     else:
         # Sequential inference
         from env_actor.auto.inference_algorithms.sequential.sequential_actor import SequentialActor
-        env_actor = SequentialActor.remote(
-            runtime_params=runtime_params,
-            inference_runtime_topics_config=inference_runtime_topics_config,
-            robot=robot,
-            policy_yaml_path=policy_yaml_path,
-            policy_state_manager_handle=policy_state_manager,
-            episode_queue_handle=episode_queue,
-        )
+        env_actor = SequentialActor.\
+                        options(resources={"inference_pc": 1}).\
+                        remote(
+                            runtime_params=runtime_params,
+                            inference_runtime_topics_config=inference_runtime_topics_config,
+                            robot=robot,
+                            policy_yaml_path=policy_yaml_path,
+                            policy_state_manager_handle=policy_state_manager,
+                            episode_queue_handle=episode_queue,
+                        )
         env_actor.start.remote()
 
-    train_ref = run_training.remote(train_config_path)
+    train_ref = run_training.\
+                    options(resources={"training_pc": 1}).\
+                    remote(train_config_path)
 
     # Start reward labeler
     if not human_reward_labeler:
         from data_labeler.auto.auto_reward_labeler import AutoRewardLabelerActor as RewardLabeler
     else:
         from data_labeler.human_in_the_loop.hil_reward_labeler import ManualRewardLabelerActor as RewardLabeler
-    reward_labeler = RewardLabeler.remote(episode_queue_handle=episode_queue,
-                                          replay_buffer_actor=replay_buffer,
-                                          img_frame_key='head',
-                                          reward_key='reward')
+    reward_labeler = RewardLabeler.\
+                        options(resources={"labeling_pc": 1}).\
+                        remote(episode_queue_handle=episode_queue,
+                               replay_buffer_actor=replay_buffer,
+                               img_frame_key='head',
+                               reward_key='reward')
     _ = reward_labeler.start.remote()
 
     try:
@@ -216,10 +235,6 @@ def start_online_rl(train_config_path, policy_yaml_path, robot, human_reward_lab
     
 
 if __name__ == "__main__":
-    try:
-        torch.multiprocessing.set_start_method('spawn')
-    except RuntimeError:
-        pass
     
     parser = argparse.ArgumentParser(description="Parse for train config and inference_config .yaml files")
     parser.add_argument("--train_config", help="absolute path to the train config .yaml file.", required=True)
