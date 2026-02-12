@@ -28,8 +28,7 @@ from .inference_engine_utils.action_inpainting import guided_action_chunk_infere
 
 from .data_manager.utils.utils import ShmArraySpec
 
-if TYPE_CHECKING:
-    from ray.actor import ActorHandle
+from ray.actor import ActorHandle
 
 
 @ray.remote(num_gpus=1)

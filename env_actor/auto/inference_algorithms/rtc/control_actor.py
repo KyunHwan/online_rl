@@ -30,8 +30,7 @@ import numpy as np
 
 from .data_manager.utils.utils import ShmArraySpec
 
-if TYPE_CHECKING:
-    from ray.actor import ActorHandle
+from ray.actor import ActorHandle
 
 
 @ray.remote

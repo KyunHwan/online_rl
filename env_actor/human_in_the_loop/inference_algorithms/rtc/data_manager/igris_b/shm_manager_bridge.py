@@ -26,10 +26,9 @@ import numpy as np
 
 from ...inference_engine_utils.max_deque import MaxDeque
 
-if TYPE_CHECKING:
-    from multiprocessing.synchronize import Condition as ConditionType
-    from multiprocessing.synchronize import Event as EventType
-    from multiprocessing.synchronize import RLock as RLockType
+from multiprocessing.synchronize import Condition as ConditionType
+from multiprocessing.synchronize import Event as EventType
+from multiprocessing.synchronize import RLock as RLockType
 
 
 class SharedMemoryManager:

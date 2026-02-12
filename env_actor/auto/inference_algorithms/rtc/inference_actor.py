@@ -30,8 +30,7 @@ from env_actor.policy.utils.weight_transfer import load_state_dict_cpu_into_modu
 from .inference_engine_utils.action_inpainting import guided_action_chunk_inference
 
 
-if TYPE_CHECKING:
-    from ray.actor import ActorHandle
+from ray.actor import ActorHandle
 
 
 @ray.remote(num_gpus=1)

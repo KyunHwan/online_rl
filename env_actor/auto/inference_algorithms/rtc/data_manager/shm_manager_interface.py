@@ -5,10 +5,9 @@ from multiprocessing import Value
 
 import numpy as np
 
-if TYPE_CHECKING:
-    from multiprocessing.synchronize import Condition as ConditionType
-    from multiprocessing.synchronize import Event as EventType
-    from multiprocessing.synchronize import RLock as RLockType
+from multiprocessing.synchronize import Condition as ConditionType
+from multiprocessing.synchronize import Event as EventType
+from multiprocessing.synchronize import RLock as RLockType
 
 
 
