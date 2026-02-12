@@ -339,7 +339,7 @@ class SharedMemoryManager:
 
             # Repeat across all rows
             np.copyto(self._shm_array_dict['action'], 
-                      np.tile(init_vec, (self.runtime_params.action_chunk_size, 1)))
+                      np.tile(init_vec, (self._shm_array_dict['action'].shape[0], 1)))
 
     def bootstrap_obs_history(
         self,
