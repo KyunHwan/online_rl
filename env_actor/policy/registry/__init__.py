@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from env_actor.policy.templates.policy import Policy
-from trainer.registry.core import Registry
+from trainer.trainer.registry.core import Registry
 
 from typing import Any
 

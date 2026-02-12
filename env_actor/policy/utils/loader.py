@@ -7,8 +7,8 @@ from typing import Any
 
 import torch
 
-from trainer.config.loader import load_config
-from trainer.modeling.factories import PolicyConstructorModelFactory
+from trainer.trainer.config.loader import load_config
+from trainer.trainer.modeling.factories import PolicyConstructorModelFactory
 
 from env_actor.policy.registry import POLICY_REGISTRY
 from env_actor.policy.templates.policy import Policy
