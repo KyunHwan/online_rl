@@ -13,7 +13,7 @@ class ControllerInterface:
 
     @property
     def DT(self):
-        return 1.0 / self.controller_bridge.DT
+        return self.controller_bridge.DT
     
     @property
     def policy_update_period(self):
