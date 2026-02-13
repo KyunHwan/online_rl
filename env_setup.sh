@@ -14,6 +14,19 @@ uv pip install pyvers
 uv pip install cloudpickle
 uv pip install torchrl
 
+# openpi
+uv pip install transformers==4.53.2
+uv pip install pytest
+uv pip install flax
+uv pip install augmax
+uv pip install beartype
+uv pip install jaxtyping==0.2.34
+uv pip install sentencepiece
+uv pip install chex
+uv pip install tqdm-loggable
+uv pip install numpydantic
+
+# trainer
 echo "Installing lerobot and related libraries for dataset"
 uv pip install --no-deps lerobot
 uv pip install datasets
@@ -21,6 +34,11 @@ uv pip install accelerate
 apt-get update && apt-get install -y ffmpeg libavcodec-dev libavdevice-dev libavfilter-dev libavformat-dev libavutil-dev libswscale-dev libswresample-dev
 uv pip install torchcodec
 uv pip install av
+uv pip install tyro
+uv pip install ml_collections
+uv pip install gcsfs
+
+# labeler
 uv pip install PySide6
 
 

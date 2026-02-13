@@ -13,9 +13,9 @@ IGRIS_B_STATE_KEYS = [
     "/observation/joint_pos/right",
     "/observation/hand_joint_pos/left",
     "/observation/hand_joint_pos/right",
-    "/observation/joint_cur/left",
-    "/observation/joint_cur/right",
-    "/observation/hand_joint_cur/left",
-    "/observation/hand_joint_cur/right",
+    # "/observation/joint_cur/left",
+    # "/observation/joint_cur/right",
+    # "/observation/hand_joint_cur/left",
+    # "/observation/hand_joint_cur/right",
 ]
 
