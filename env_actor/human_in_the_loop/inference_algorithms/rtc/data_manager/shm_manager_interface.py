@@ -136,3 +136,4 @@ class SharedMemoryInterface:
 
     def cleanup(self) -> None:
         self.shm_manager.cleanup()
+        
