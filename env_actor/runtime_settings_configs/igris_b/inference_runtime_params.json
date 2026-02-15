@@ -11,7 +11,7 @@
     "left",
     "right"
 ],
-  "proprio_state_dim": 48,
+  "proprio_state_dim": 24,
   "action_dim": 24,
   "action_chunk_size": 40,
   "proprio_history_size": 40,

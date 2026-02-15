@@ -47,8 +47,11 @@ class ManualRewardLabelerActor:
             - either [H, W, 3] (HWC, RGB) or [3, H, W] (CHW, RGB)
             Returns a detached/copy QImage safe for Qt usage.
             """
+            
             if frame_t.device.type != "cpu":
                 frame_t = frame_t.cpu()
+
+            if len(frame_t.shape) == 4: frame_t = frame_t.squeeze()
 
             if frame_t.ndim != 3:
                 raise ValueError(f"Expected frame with 3 dims, got {tuple(frame_t.shape)}")
