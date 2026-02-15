@@ -23,7 +23,7 @@ class RTCActorOpenpi:
                  ):
         # Standard
         self.robot = robot
-        self.policy_yaml_path
+        self.policy_yaml_path = policy_yaml_path
         self.inference_runtime_params_config = inference_runtime_params_config
         self.inference_runtime_topics_config = inference_runtime_topics_config
         self.min_num_actions_executed = min_num_actions_executed
