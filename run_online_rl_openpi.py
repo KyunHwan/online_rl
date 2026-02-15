@@ -87,14 +87,14 @@ def start_online_rl(train_config_path,
         else:
             raise ValueError(f"Unknown robot: {robot}")
         
-        if isinstance(inference_runtime_params_config, str):
-            with open(inference_runtime_params_config, 'r') as f:
-                inference_runtime_params_config = json.load(f)
-        runtime_params = RuntimeParams(inference_runtime_params_config)
+        # if isinstance(inference_runtime_params_config, str):
+        #     with open(inference_runtime_params_config, 'r') as f:
+        #         inference_runtime_params_config = json.load(f)
+        # runtime_params = RuntimeParams(inference_runtime_params_config)
 
-        if isinstance(inference_runtime_topics_config, str):
-            with open(inference_runtime_topics_config, 'r') as f:
-                inference_runtime_topics_config = json.load(f)
+        # if isinstance(inference_runtime_topics_config, str):
+        #     with open(inference_runtime_topics_config, 'r') as f:
+        #         inference_runtime_topics_config = json.load(f)
 
         # RTC (Real-Time Action Chunking)
         if inference_algorithm == 'rtc':
@@ -119,14 +119,14 @@ def start_online_rl(train_config_path,
             env_actor = SequentialActor.\
                             options(resources={"inference_pc": 1}).\
                             remote(
-                                runtime_params=runtime_params,
+                                inference_runtime_params_config=inference_runtime_params_config,
                                 inference_runtime_topics_config=inference_runtime_topics_config,
                                 robot=robot,
                                 policy_yaml_path=policy_yaml_path,
                                 policy_state_manager_handle=policy_state_manager,
                                 episode_queue_handle=episode_queue,
                             )
-            env_actor.start.remote()
+        env_actor.start.remote()
 
         train_ref = run_training.\
                         options(resources={"training_pc": 1}).\
@@ -158,13 +158,27 @@ def start_online_rl(train_config_path,
 if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="Parse for train config and inference_config .yaml files")
-    parser.add_argument("--train_config", help="absolute path to the train config .yaml file.", required=True)
-    parser.add_argument("--policy_yaml", help="absolute path to the policy config .yaml file.", required=True)
-    parser.add_argument("--robot", help="igris_b or igris_c", required=True)
-    parser.add_argument("--human_reward_labeler", action="store_true", help="whether reward labeling is done by a human")
-    parser.add_argument("--inference_runtime_params_config", help="absolute path to the inference runtime params config file.", required=True)
-    parser.add_argument("--inference_runtime_topics_config", help="absolute path to the inference runtime topics config file.", required=True)
-    parser.add_argument("--inference_algorithm", default="rtc", choices=["sequential", "rtc"],
+    parser.add_argument("--train_config", 
+                        default="/home/user/Projects/online_rl/trainer/experiment_training/imitation_learning/vfp_single_expert/exp2/vfp_single_expert_depth.yaml",
+                        help="absolute path to the train config .yaml file.")
+    parser.add_argument("--policy_yaml", 
+                        default=".",
+                        help="absolute path to the policy config .yaml file.")
+    parser.add_argument("--robot", 
+                        default="igris_b",
+                        help="igris_b or igris_c")
+    parser.add_argument("--human_reward_labeler", 
+                        action="store_true", 
+                        help="whether reward labeling is done by a human")
+    parser.add_argument("--inference_runtime_params_config", 
+                        default="/home/robros/Projects/online_rl/env_actor/runtime_settings_configs/inference_runtime_params.json",
+                        help="absolute path to the inference runtime params config file.")
+    parser.add_argument("--inference_runtime_topics_config", 
+                        default="/home/robros/Projects/online_rl/env_actor/runtime_settings_configs/inference_runtime_topics.json",
+                        help="absolute path to the inference runtime topics config file.")
+    parser.add_argument("--inference_algorithm", 
+                        default="rtc", 
+                        choices=["sequential", "rtc"],
                         help="inference algorithm: 'sequential' or 'rtc' (real-time action chunking)")
     parser.add_argument(
         "--ckpt_dir", "-C", type=str,
