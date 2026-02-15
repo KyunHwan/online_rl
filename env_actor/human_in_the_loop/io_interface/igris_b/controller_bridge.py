@@ -30,6 +30,8 @@ class ControllerBridge:
                  inference_runtime_topics_config,):
         self.runtime_params = runtime_params
 
+        if not rclpy.ok():
+            rclpy.init()
         self.input_recorder = GenericRecorder(inference_runtime_topics_config)
         self.qos = QoSProfile(depth=10)
         self.qos.reliability = QoSReliabilityPolicy.RELIABLE
@@ -207,3 +209,8 @@ class ControllerBridge:
                 # Missing field → zero-fill with expected shape
                 arrays.append(np.zeros((6,), dtype=np.float32))
         return np.concatenate(arrays, axis=-1)
+
+    def shutdown(self):
+        self.executor.shutdown()
+        self.input_recorder.destroy_node()
+        rclpy.shutdown()
