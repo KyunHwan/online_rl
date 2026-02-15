@@ -26,6 +26,7 @@ class PolicyStateManagerActor:
         Returns None else
         """
         if self.current_weights_ref is not None and self.controller_version != self.trainer_version:
+            print("received weight from plasma...")
             self.controller_version = self.trainer_version
             return self.current_weights_ref
         else:

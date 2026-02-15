@@ -87,6 +87,10 @@ def start_control(
 
         while True:
             # Check stop event
+            if episode >= 0:
+                print(f"Episode {episode} finished!")
+                shm_manager.signal_episode_complete()
+
             if shm_manager.stop_event_is_set():
                 print("Stop event received, exiting control loop")
                 break
@@ -161,8 +165,7 @@ def start_control(
                 if sleep_time > 0.0:
                     time.sleep(sleep_time)
 
-            print(f"Episode {episode} finished!")
-            shm_manager.signal_episode_complete()
+            
     finally:
         if 'shm_manager' in locals():
             shm_manager.cleanup()
