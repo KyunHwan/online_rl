@@ -151,6 +151,7 @@ class RTCActorOpenpi:
                     p.join(timeout=0.5)
                     # If a child died unexpectedly, request shutdown so waiters wake up
                     if p.exitcode is not None and p.exitcode != 0:
+                        print("RTC child process died unexpectedly...")
                         stop_event.set()
                         with control_iter_cond:
                             control_iter_cond.notify_all()

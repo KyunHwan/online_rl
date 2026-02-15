@@ -108,7 +108,7 @@ def start_online_rl(train_config_path,
                     policy_yaml_path=policy_yaml_path,
                     inference_runtime_params_config=inference_runtime_params_config,
                     inference_runtime_topics_config=inference_runtime_topics_config,
-                    min_num_actions_executed=30,
+                    min_num_actions_executed=15,
 
                     episode_queue_handle=episode_queue,
 

@@ -180,7 +180,7 @@ def start_inference(
                 weights = _compute_guided_prefix_weights(
                     input_data['est_delay'],
                     blend_steps, # executed steps
-                    min_num_actions_executed, # total
+                    runtime_params.action_chunk_size, # total
                     schedule="exp",
                 ).reshape(-1, 1)
                 next_actions = input_data['prev_action'] * weights + pred_actions * (1.0 - weights)
