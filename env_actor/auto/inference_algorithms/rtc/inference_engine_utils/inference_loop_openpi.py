@@ -174,7 +174,7 @@ def start_inference(
                 print("action inference...")
                 with torch.inference_mode() and torch.autocast(device_type="cuda", dtype=torch.bfloat16):
                     pred_actions = policy.predict(obs=input_data, noise=None)
-
+                print(f"delay: {input_data['est_delay']}")
                 blend_steps = max(1, min(input_data['est_delay'], 
                                          min_num_actions_executed - input_data['est_delay']))
                 weights = _compute_guided_prefix_weights(
