@@ -28,6 +28,7 @@ def start_control(
 
     import time
     import json
+    import numpy as np
 
     from env_actor.episode_recorder.episode_recorder_interface import EpisodeRecorderInterface
     from env_actor.auto.io_interface.controller_interface import ControllerInterface
@@ -135,12 +136,20 @@ def start_control(
                     print(f"Warning: No proprio data at step {t}, skipping...")
                     continue
 
+                episode_recorder.add_obs_state(obs_data)
+
                 # e. Update SharedMemory (atomic write + increment, direct call)
                 action = shm_manager.atomic_write_obs_and_increment_get_action(obs=obs_data, 
                                                                                     action_chunk_size=runtime_params.action_chunk_size)
 
                 # h. Publish action to robot (includes slew-rate limiting)
                 smoothed_joints, fingers = controller_interface.publish_action(action, prev_joint)
+
+                recorded_action = np.concatenate([
+                    np.concatenate([smoothed_joints[6:], smoothed_joints[:6]]),
+                    fingers,
+                ])
+                episode_recorder.add_action(recorded_action)
 
                 # j. Update previous joint state
                 prev_joint = smoothed_joints
