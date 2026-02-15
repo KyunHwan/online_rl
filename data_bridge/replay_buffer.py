@@ -38,9 +38,11 @@ class ReplayBufferActor:
                 sampler=self.sampler
             )
             
-    @property
     def size(self):
-        return len(self.buffer)
+        if self.use_hil_buffer:
+            return len(self.buffer) + len(self.hil_buffer)
+        else:
+            return len(self.buffer)
 
     def add(self, episode_tensordict, separate_key: str = 'control_mode'):
         """
