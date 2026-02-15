@@ -126,8 +126,10 @@ def start_online_rl(train_config_path,
                                 policy_state_manager_handle=policy_state_manager,
                                 episode_queue_handle=episode_queue,
                             )
+        print("running env_actor...")
         env_actor.start.remote()
 
+        print("running training...")
         train_ref = run_training.\
                         options(resources={"training_pc": 1}).\
                         remote(train_config_path)
@@ -137,6 +139,8 @@ def start_online_rl(train_config_path,
             from data_labeler.auto.auto_reward_labeler import AutoRewardLabelerActor as RewardLabeler
         else:
             from data_labeler.human_in_the_loop.hil_reward_labeler import ManualRewardLabelerActor as RewardLabeler
+
+        print("running labeler...")
         reward_labeler = RewardLabeler.\
                             options(resources={"labeling_pc": 1}).\
                             remote(episode_queue_handle=episode_queue,
