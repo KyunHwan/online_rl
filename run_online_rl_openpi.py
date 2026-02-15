@@ -108,6 +108,8 @@ def start_online_rl(train_config_path,
                     inference_runtime_topics_config=inference_runtime_topics_config,
                     min_num_actions_executed=30,
 
+                    episode_queue_handle=episode_queue,
+
                     ckpt_dir=ckpt_dir,
                     default_prompt=default_prompt,
                 )

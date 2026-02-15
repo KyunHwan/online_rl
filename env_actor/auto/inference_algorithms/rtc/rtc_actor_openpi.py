@@ -15,9 +15,7 @@ class RTCActorOpenpi:
                  inference_runtime_topics_config,
                  min_num_actions_executed,
 
-                 episode_queue_handle, 
-                 policy_state_manager_handle, 
-                 replay_buffer_handle,
+                 episode_queue_handle,
 
                  ckpt_dir,
                  default_prompt=None,
@@ -30,8 +28,6 @@ class RTCActorOpenpi:
 
         # Ray
         self.episode_queue_handle = episode_queue_handle
-        self.policy_state_manager_handle = policy_state_manager_handle
-        self.replay_buffer_handle = replay_buffer_handle
 
         # Openpi
         self.ckpt_dir = ckpt_dir
