@@ -123,6 +123,7 @@ def start_control(
             next_t = time.perf_counter()
             print("Control loop started...")
             for t in range(episode_length):
+                print(f"step {t}")
                 # Check stop event
                 if shm_manager.stop_event_is_set():
                     print("Stop event received during episode, exiting")

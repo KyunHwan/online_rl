@@ -171,6 +171,7 @@ def start_inference(
 
                 # Normalize observations and prev_action_chunk
                 # normalized_input_data = self.data_normalization_bridge.normalize_state_action(input_data)
+                print("action inference...")
                 with torch.inference_mode() and torch.autocast(device_type="cuda", dtype=torch.bfloat16):
                     pred_actions = policy.predict(obs=input_data, noise=None)
 
