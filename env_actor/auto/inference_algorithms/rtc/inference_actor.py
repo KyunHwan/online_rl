@@ -63,7 +63,7 @@ class InferenceActor:
         self,
         runtime_params,
         policy_yaml_path: str,
-        policy_state_manager_handle: "ActorHandle",
+        policy_state_manager_handle: ActorHandle,
         shm_specs: dict[str: ShmArraySpec],
         lock: RLockType,
         control_iter_cond: ConditionType,

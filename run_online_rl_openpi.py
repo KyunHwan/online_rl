@@ -30,9 +30,9 @@ robot_obs_history_dtype = np.float32
 cam_images_dtype = np.uint8
 action_chunk_dtype = np.float32
 
-RAYQUEUE_MAXSIZE=25
+RAYQUEUE_MAXSIZE = 25
 
-@ray.remote()#num_gpus=4)
+@ray.remote()
 def run_training(train_config_path: str):
     """Run TorchTrainer.fit() in a Ray worker process so the GUI thread stays free."""
     print("Running TorchTrainer...")

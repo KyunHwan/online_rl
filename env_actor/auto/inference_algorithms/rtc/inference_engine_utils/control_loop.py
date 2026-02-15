@@ -1,5 +1,3 @@
-
-
 def start_control(
         robot,
         inference_runtime_params_config,
@@ -13,17 +11,28 @@ def start_control(
         episode_complete_event,
         num_control_iters,
         inference_ready_flag,
+
+        episode_queue_handle_b,
     ):
     """Synchronous implementation of the main control loop.
 
     Note: Changed from async to sync since SharedMemoryManager uses
     standard multiprocessing primitives, not asyncio.
     """
+    import ray
+    from ray import cloudpickle
+    if not ray.is_initialized():
+        ray.init(address="auto", namespace="online_rl", log_to_driver=False)
+    
+    episode_queue_handle = cloudpickle.loads(episode_queue_handle_b)
+
     import time
     import json
+
+    from env_actor.episode_recorder.episode_recorder_interface import EpisodeRecorderInterface
     from env_actor.auto.io_interface.controller_interface import ControllerInterface
     from ..data_manager.shm_manager_interface import SharedMemoryInterface
-
+    
     # Load robot-specific RuntimeParams
     if robot == "igris_b":
         from env_actor.runtime_settings_configs.igris_b.inference_runtime_params import RuntimeParams
@@ -31,6 +40,8 @@ def start_control(
     #     from env_actor.runtime_settings_configs.igris_c.inference_runtime_params import RuntimeParams
     else:
         raise ValueError(f"Unknown robot: {robot}")
+
+    
 
     if isinstance(inference_runtime_params_config, str):
         with open(inference_runtime_params_config, 'r') as f:
@@ -61,6 +72,8 @@ def start_control(
         inference_ready_flag=inference_ready_flag,
     )
 
+    episode_recorder = EpisodeRecorderInterface(robot=robot)
+
     # Episode configuration
     episode_length = 9000  # Control steps per episode
 
@@ -83,6 +96,14 @@ def start_control(
                 return
             # Clear episode_complete after inference signals ready (ensures handshake)
             shm_manager.clear_episode_complete()
+
+            # Episode boundary handling
+            if episode >= 0:
+                print(f"Submitting episode {episode} data...")
+                sub_eps = episode_recorder.serve_train_data_buffer(episode)
+                for sub_ep in sub_eps:
+                    sub_ep_data_ref = ray.put(sub_ep)
+                    episode_queue_handle.put(sub_ep_data_ref, block=True)
 
             # Initialize new episode
             episode += 1

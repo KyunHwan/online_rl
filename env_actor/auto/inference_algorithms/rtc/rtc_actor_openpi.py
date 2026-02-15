@@ -1,10 +1,13 @@
+
+import ray
 import numpy as np
 import json
-import ray
-from ctypes import c_bool
-from multiprocessing import Process, resource_tracker, Condition, Event, RLock, Value
 
-@ray.remote(num_gpus=1)
+from ctypes import c_bool
+
+#from multiprocessing import Process, resource_tracker, Condition, Event, RLock, Value
+
+@ray.remote(num_gpus=1, num_cpus=4)
 class RTCActorOpenpi:
     def __init__(self,
                  robot,
@@ -12,23 +15,35 @@ class RTCActorOpenpi:
                  inference_runtime_topics_config,
                  min_num_actions_executed,
 
+                 episode_queue_handle, 
+                 policy_state_manager_handle, 
+                 replay_buffer_handle,
+
                  ckpt_dir,
                  default_prompt=None,
                  ):
-
+        # Standard
         self.robot = robot
         self.inference_runtime_params_config = inference_runtime_params_config
         self.inference_runtime_topics_config = inference_runtime_topics_config
         self.min_num_actions_executed = min_num_actions_executed
 
+        # Ray
+        self.episode_queue_handle = episode_queue_handle
+        self.policy_state_manager_handle = policy_state_manager_handle
+        self.replay_buffer_handle = replay_buffer_handle
+
+        # Openpi
         self.ckpt_dir = ckpt_dir
         self.default_prompt = default_prompt
     
     def start(self):
+        from ray import cloudpickle
+        import multiprocessing as mp
+        from multiprocessing import resource_tracker
         from env_actor.auto.inference_algorithms.rtc.data_manager.utils.utils import create_shared_ndarray
         from .inference_engine_utils.control_loop import start_control
         from .inference_engine_utils.inference_loop_openpi import start_inference
-
 
         # Load robot-specific RuntimeParams
         if self.robot == "igris_b":
@@ -41,6 +56,8 @@ class RTCActorOpenpi:
         robot_obs_history_dtype = np.float32
         cam_images_dtype = np.uint8
         action_chunk_dtype = np.float32
+
+        ctx = mp.get_context("spawn")
 
         if isinstance(self.inference_runtime_params_config, str):
             with open(self.inference_runtime_params_config, 'r') as f:
@@ -73,16 +90,19 @@ class RTCActorOpenpi:
         }
 
         # Create synchronization primitives
-        lock = RLock()
-        control_iter_cond = Condition(lock)      # For num_control_iters waits
-        inference_ready_cond = Condition(lock)   # For inference_ready waits
-        stop_event = Event()
-        episode_complete_event = Event()         # For episode completion signaling
-        num_control_iters = Value('i', 0, lock=False)
-        inference_ready_flag = Value(c_bool, False, lock=False)
+        lock = ctx.RLock()
+        control_iter_cond = ctx.Condition(lock)      # For num_control_iters waits
+        inference_ready_cond = ctx.Condition(lock)   # For inference_ready waits
+        stop_event = ctx.Event()
+        episode_complete_event = ctx.Event()         # For episode completion signaling
+        num_control_iters = ctx.Value('i', 0, lock=False)
+        inference_ready_flag = ctx.Value(c_bool, False, lock=False)
         
+        # serialize ray handles to bytes
+        episode_queue_handle_b  = cloudpickle.dumps(self.episode_queue_handle)
+
         # Pass ONLY specs to children; they will attach by name
-        inference_runner = Process(
+        inference_runner = ctx.Process(
             target=start_inference,
             args=(
                 self.robot,
@@ -102,7 +122,7 @@ class RTCActorOpenpi:
             ),
             daemon=False
         )
-        controller = Process(
+        controller = ctx.Process(
             target=start_control,
             args=(
                 self.robot,
@@ -116,6 +136,8 @@ class RTCActorOpenpi:
                 episode_complete_event,
                 num_control_iters,
                 inference_ready_flag,
+
+                episode_queue_handle_b,
             ),
             daemon=False
         )

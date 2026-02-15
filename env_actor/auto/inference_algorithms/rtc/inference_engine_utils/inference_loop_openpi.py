@@ -34,6 +34,7 @@ def start_inference(
         robot,
         ckpt_dir,
         default_prompt,
+        policy_yaml_path,
         min_num_actions_executed,
         inference_runtime_params_config,
         inference_runtime_topics_config,
@@ -47,11 +48,18 @@ def start_inference(
         num_control_iters,
         inference_ready_flag,
     ) -> None:
+    import ray
+    if not ray.is_initialized():
+        ray.init(address="auto", namespace="online_rl", log_to_driver=False)
+
     import torch
     import json
+
     from ..data_manager.data_normalization_interface import DataNormalizationInterface
     from ..data_manager.shm_manager_interface import SharedMemoryInterface
     from env_actor.policy.policies.pi05_igris.pi05_igris import Pi05IgrisVlaAdapter
+    from env_actor.policy.utils.weight_transfer import load_state_dict_cpu_into_module
+    from env_actor.policy.utils.loader import build_policy
     
     try:
         # Load robot-specific RuntimeParams
@@ -87,6 +95,11 @@ def start_inference(
         - Outer loop handles per-episode transitions
         - Inner loop handles inference iterations within an episode
         """
+        # Build policy using env_actor loader
+        _policy = build_policy(
+            policy_yaml_path=policy_yaml_path,
+            map_location=device,
+        )
 
         policy = Pi05IgrisVlaAdapter(
                 ckpt_dir=ckpt_dir,
@@ -108,6 +121,8 @@ def start_inference(
             inference_ready_flag=inference_ready_flag,
         )
 
+        policy_state_manager_handle = ray.get_actor("policy_state_manager")
+
         data_normalization_bridge = DataNormalizationInterface(robot=robot, data_stats=runtime_params.read_stats_file())
 
         # # Warm up CUDA (once, outside all loops)
@@ -122,6 +137,15 @@ def start_inference(
         # print("Starting inference loop...")
 
         while True:  # Outer loop - per episode
+            # Signal ready for new episode
+            current_weights = ray.get(policy_state_manager_handle.get_weights.remote())
+            if current_weights is not None:
+                for model_name, model in _policy.components.items():
+                    sd_cpu = current_weights[model_name]   # <-- critical fix
+                    missing, unexpected = load_state_dict_cpu_into_module(model, sd_cpu, strict=True)
+                    print(f"Model {model_name} weights updated")
+                print("Policy weights updated successfully")
+
             print("Signaling inference ready...")
             shm_manager.set_inference_ready()
 
