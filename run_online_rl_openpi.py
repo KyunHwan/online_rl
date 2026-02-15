@@ -151,9 +151,13 @@ def start_online_rl(train_config_path,
 
         _ = ray.get(train_ref)
 
+    except Exception as e:
+        print(f"Online RL failed with error: {e}")
+        import traceback
+        traceback.print_exc()
+        
     finally:
         ray.shutdown()
-        sys.exit()
 
     
     
