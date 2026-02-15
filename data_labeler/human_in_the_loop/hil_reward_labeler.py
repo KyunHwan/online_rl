@@ -9,7 +9,7 @@ from tensordict import TensorDict
 
 import ray
 
-@ray.remote()
+@ray.remote
 class ManualRewardLabelerActor:
     """
     Actor: runs a PySide6 app that pulls TensorDicts from a Ray queue,

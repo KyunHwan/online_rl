@@ -32,7 +32,7 @@ action_chunk_dtype = np.float32
 
 RAYQUEUE_MAXSIZE = 25
 
-@ray.remote()
+@ray.remote
 def run_training(train_config_path: str):
     """Run TorchTrainer.fit() in a Ray worker process so the GUI thread stays free."""
     print("Running TorchTrainer...")
