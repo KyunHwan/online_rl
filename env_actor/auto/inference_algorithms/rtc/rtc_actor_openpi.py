@@ -11,6 +11,7 @@ from ctypes import c_bool
 class RTCActorOpenpi:
     def __init__(self,
                  robot,
+                 policy_yaml_path,
                  inference_runtime_params_config,
                  inference_runtime_topics_config,
                  min_num_actions_executed,
@@ -22,6 +23,7 @@ class RTCActorOpenpi:
                  ):
         # Standard
         self.robot = robot
+        self.policy_yaml_path
         self.inference_runtime_params_config = inference_runtime_params_config
         self.inference_runtime_topics_config = inference_runtime_topics_config
         self.min_num_actions_executed = min_num_actions_executed
@@ -104,6 +106,7 @@ class RTCActorOpenpi:
                 self.robot,
                 self.ckpt_dir,
                 self.default_prompt,
+                self.policy_yaml_path,
                 self.min_num_actions_executed,
                 self.inference_runtime_params_config,
                 self.inference_runtime_topics_config,

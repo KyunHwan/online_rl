@@ -105,6 +105,7 @@ def start_online_rl(train_config_path,
                 options(resources={"inference_pc": 1}).\
                 remote(
                     robot=robot,
+                    policy_yaml_path=policy_yaml_path,
                     inference_runtime_params_config=inference_runtime_params_config,
                     inference_runtime_topics_config=inference_runtime_topics_config,
                     min_num_actions_executed=30,
