@@ -1,7 +1,7 @@
 {
   "HZ": 20,
   "max_delta_deg": 0.01,
-  "policy_update_period": 40,
+  "policy_update_period": 50,
   "mono_image_resize": {
   "width": 320,
   "height": 240
@@ -13,8 +13,8 @@
 ],
   "proprio_state_dim": 24,
   "action_dim": 24,
-  "action_chunk_size": 40,
-  "proprio_history_size": 40,
+  "action_chunk_size": 50,
+  "proprio_history_size": 1,
   "num_img_obs": 1,
   "img_obs_every": 1,
   "norm_stats_file_path": ""
