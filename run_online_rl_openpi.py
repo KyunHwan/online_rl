@@ -179,10 +179,10 @@ if __name__ == "__main__":
                         action="store_true", 
                         help="whether reward labeling is done by a human")
     parser.add_argument("--inference_runtime_params_config", 
-                        default="/home/robros/Projects/online_rl/env_actor/runtime_settings_configs/inference_runtime_params.json",
+                        default="/home/robros/Projects/online_rl/env_actor/runtime_settings_configs/igris_b/inference_runtime_params.json",
                         help="absolute path to the inference runtime params config file.")
     parser.add_argument("--inference_runtime_topics_config", 
-                        default="/home/robros/Projects/online_rl/env_actor/runtime_settings_configs/inference_runtime_topics.json",
+                        default="/home/robros/Projects/online_rl/env_actor/runtime_settings_configs/igris_b/inference_runtime_topics.json",
                         help="absolute path to the inference runtime topics config file.")
     parser.add_argument("--inference_algorithm", 
                         default="rtc", 
