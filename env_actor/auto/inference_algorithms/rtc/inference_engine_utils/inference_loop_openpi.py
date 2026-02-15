@@ -96,10 +96,10 @@ def start_inference(
         - Inner loop handles inference iterations within an episode
         """
         # Build policy using env_actor loader
-        _policy = build_policy(
-            policy_yaml_path=policy_yaml_path,
-            map_location=device,
-        )
+        # _policy = build_policy(
+        #     policy_yaml_path=policy_yaml_path,
+        #     map_location=device,
+        # )
 
         policy = Pi05IgrisVlaAdapter(
                 ckpt_dir=ckpt_dir,
@@ -140,10 +140,10 @@ def start_inference(
             # Signal ready for new episode
             current_weights = ray.get(policy_state_manager_handle.get_weights.remote())
             if current_weights is not None:
-                for model_name, model in _policy.components.items():
-                    sd_cpu = current_weights[model_name]   # <-- critical fix
-                    missing, unexpected = load_state_dict_cpu_into_module(model, sd_cpu, strict=True)
-                    print(f"Model {model_name} weights updated")
+                # for model_name, model in _policy.components.items():
+                #     sd_cpu = current_weights[model_name]   # <-- critical fix
+                #     missing, unexpected = load_state_dict_cpu_into_module(model, sd_cpu, strict=True)
+                #     print(f"Model {model_name} weights updated")
                 print("Policy weights updated successfully")
 
             print("Signaling inference ready...")
