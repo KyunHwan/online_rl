@@ -22,7 +22,7 @@ def start_control(
     import ray
     from ray import cloudpickle
     if not ray.is_initialized():
-        ray.init(address="auto", namespace="online_rl", log_to_driver=False)
+        ray.init(address="auto", namespace="online_rl", log_to_driver=True)
     
     episode_queue_handle = cloudpickle.loads(episode_queue_handle_b)
 

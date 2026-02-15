@@ -50,7 +50,7 @@ def start_inference(
     ) -> None:
     import ray
     if not ray.is_initialized():
-        ray.init(address="auto", namespace="online_rl", log_to_driver=False)
+        ray.init(address="auto", namespace="online_rl", log_to_driver=True)
 
     import torch
     import json
