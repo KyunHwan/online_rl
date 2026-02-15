@@ -76,7 +76,7 @@ def start_online_rl(train_config_path,
         policy_state_manager = PolicyStateManagerActor.options(resources={"training_pc": 1},
                                                             name="policy_state_manager").remote()
         replay_buffer = ReplayBufferActor.options(resources={"training_pc": 1},
-                                                name="replay_buffer").remote()
+                                                name="replay_buffer").remote(slice_len=80)
 
         # Environment Actor
         # Load RuntimeParams to get dimensions for SharedMemory
@@ -155,7 +155,7 @@ def start_online_rl(train_config_path,
         print(f"Online RL failed with error: {e}")
         import traceback
         traceback.print_exc()
-        
+
     finally:
         ray.shutdown()
 
