@@ -66,7 +66,8 @@ def start_online_rl(train_config_path,
     if ray.is_initialized():
         ray.shutdown()
     ray.init(address="auto",
-             namespace="online_rl")
+             namespace="online_rl",
+             runtime_env={"working_dir": "."})
     
     try:
         # Queue is the bridge between the controller and the reward labeler
