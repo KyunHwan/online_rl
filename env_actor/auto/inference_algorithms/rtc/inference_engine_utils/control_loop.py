@@ -76,7 +76,7 @@ def start_control(
     episode_recorder = EpisodeRecorderInterface(robot=robot)
 
     # Episode configuration
-    episode_length = 200  # Control steps per episode
+    episode_length = 100  # Control steps per episode
 
     try:
         print("Starting state readers...")
@@ -107,6 +107,7 @@ def start_control(
                     episode_queue_handle.put(sub_ep_data_ref, block=True)
 
             # Initialize new episode
+            episode_recorder.init_train_data_buffer()
             episode += 1
             print(f"Starting episode {episode}...")
 
