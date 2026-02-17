@@ -154,12 +154,11 @@ class SharedMemoryManager:
                     or self._num_control_iters.value >= min_actions
                 )
             )
-
-        if self._stop_event.is_set():
-            return 'stop'
-        if self._episode_complete_event.is_set():
-            return 'episode_complete'
-        return 'min_actions'
+            if self._stop_event.is_set():
+                return 'stop'
+            if self._episode_complete_event.is_set():
+                return 'episode_complete'
+            return 'min_actions'
 
     def wait_for_inference_ready(self) -> bool:
         """Block until inference actor signals ready.
@@ -173,7 +172,7 @@ class SharedMemoryManager:
             self._inference_ready_cond.wait_for(
                 lambda: self._stop_event.is_set() or self._inference_ready_flag.value
             )
-        return not self._stop_event.is_set()
+            return not self._stop_event.is_set()
 
     def set_inference_ready(self) -> None:
         """Signal that inference actor initialization is complete.
