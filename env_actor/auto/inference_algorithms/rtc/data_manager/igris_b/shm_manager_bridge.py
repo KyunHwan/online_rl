@@ -293,7 +293,7 @@ class SharedMemoryManager:
                     np.copyto(self._shm_array_dict[key][0], obs[key], casting='no')
                 else:
                     np.copyto(self._shm_array_dict[key], obs[key], casting='no')
-            action_idx = min(self._num_control_iters.value - 1, action_chunk_size - 1)
+            action_idx = max(0, min(self._num_control_iters.value - 1, action_chunk_size - 1))
             action = self._shm_array_dict['action'][action_idx].copy()
             
             self.notify_step()
