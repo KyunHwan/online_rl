@@ -1,6 +1,6 @@
 {
   "HZ": 20,
-  "max_delta_deg": 0.3,
+  "max_delta_deg": 5,
   "policy_update_period": 50,
   "mono_image_resize": {
   "width": 320,
