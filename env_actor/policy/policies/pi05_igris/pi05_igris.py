@@ -197,8 +197,13 @@ class Pi05IgrisVlaAdapter:
 
     # --- Stubs for inference_engine policy interface ---
     def warmup(self) -> None:
-        """torch.compile warmup happens automatically on first forward pass."""
-        pass
+        """Run a dummy forward pass to trigger torch.compile and cuDNN warmup."""
+        dummy_obs = {
+            "proprio": np.zeros((1, self.state_dim), dtype=np.float32),
+        }
+        for cam in self.camera_names:
+            dummy_obs[cam] = np.zeros((1, 3, 224, 224), dtype=np.uint8)
+        self.predict(dummy_obs)
 
     def freeze_all_model_params(self) -> None:
         """vla_ policy is already in eval mode after create_trained_policy."""
