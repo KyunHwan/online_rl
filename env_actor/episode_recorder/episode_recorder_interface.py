@@ -2,9 +2,9 @@ class EpisodeRecorderInterface:
     def __init__(self, robot):
         self.episode_recorder_bridge = None
         if robot == "igris_b":
-            from env_actor.episode_recorder.igris_b.episode_recorder_bridge import EpisodeRecorderBridge
+            from env_actor.episode_recorder.robots.igris_b.episode_recorder_bridge import EpisodeRecorderBridge
         elif robot == "igris_c":
-            from env_actor.episode_recorder.igris_c.episode_recorder_bridge import EpisodeRecorderBridge
+            from env_actor.episode_recorder.robots.igris_c.episode_recorder_bridge import EpisodeRecorderBridge
         self.episode_recorder_bridge = EpisodeRecorderBridge()
 
     def serve_train_data_buffer(self, episode_id):

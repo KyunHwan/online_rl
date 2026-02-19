@@ -1,34 +1,4 @@
 import numpy as np
-import math
-
-def _compute_guided_prefix_weights(
-    delay_steps: int,
-    executed: int,
-    total: int,
-    *,
-    schedule: str = "exp",
-) -> np.ndarray:
-    """Guided-inference prefix weighting for blending neighboring action chunks."""
-    start = max(min(int(delay_steps), total), 0)
-    if start >= total:
-        return np.ones(total, dtype=np.float32)
-    span = max(int(executed), 1)
-    span = min(span, max(total - start, 1))
-    
-    indices = np.arange(total, dtype=np.float32)
-    if schedule == "ones":
-        return np.ones(total, dtype=np.float32)
-    if schedule == "zeros":
-        return (indices < start).astype(np.float32)
-    weights = np.zeros(total, dtype=np.float32)
-    weights[:start] = 1.0
-    denom = total - span - start + 1
-    if denom > 0 and (total - span) > start:
-        c_i = (total - span - indices) / float(denom)
-        inter_vals = c_i * np.expm1(c_i) / (math.e - 1.0)
-        weights[start : total - span] = inter_vals[start : total - span]
-    weights[total - span :] = 0.0
-    return weights
 
 def start_inference(
         robot,
@@ -57,7 +27,6 @@ def start_inference(
 
     from ..data_manager.data_normalization_interface import DataNormalizationInterface
     from ..data_manager.shm_manager_interface import SharedMemoryInterface
-    from env_actor.policy.policies.pi05_igris.pi05_igris import Pi05IgrisVlaAdapter
     from env_actor.policy.utils.weight_transfer import load_state_dict_cpu_into_module
     from env_actor.policy.utils.loader import build_policy
     
@@ -80,11 +49,6 @@ def start_inference(
             with open(inference_runtime_topics_config, 'r') as f:
                 inference_runtime_topics_config = json.load(f)
 
-        """Initialize the inference actor."""
-        # Set up device and CUDA optimizations
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        torch.backends.cudnn.benchmark = True
-        torch.set_float32_matmul_precision("high")
         """Main inference loop implementation.
 
         Note: Changed from async to sync since SharedMemoryManager uses
@@ -95,17 +59,19 @@ def start_inference(
         - Outer loop handles per-episode transitions
         - Inner loop handles inference iterations within an episode
         """
-        # Build policy using env_actor loader
-        # _policy = build_policy(
-        #     policy_yaml_path=policy_yaml_path,
-        #     map_location=device,
-        # )
 
-        policy = Pi05IgrisVlaAdapter(
-                ckpt_dir=ckpt_dir,
-                device=str(device),
-                default_prompt=default_prompt,
-            )
+        """Initialize the inference actor."""
+        # Set up device and CUDA optimizations
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        torch.backends.cudnn.benchmark = True
+        torch.set_float32_matmul_precision("high")
+
+        # Build policy using env_actor loader
+        policy = build_policy(
+            policy_yaml_path=policy_yaml_path,
+            map_location=device,
+        )
+        policy.eval()
         
         # Warm up CUDA (once, outside all loops)
         print("Warming up CUDA kernels...")
@@ -114,8 +80,6 @@ def start_inference(
                 policy.warmup()
             except Exception as e:
                 print(f"Warmup encountered error (may be expected for minimal inputs): {e}")
-
-        #policy.eval()
 
         # Create SharedMemoryManager from specs (attaches to existing SharedMemory)
         shm_manager = SharedMemoryInterface.attach_from_specs(
@@ -134,16 +98,16 @@ def start_inference(
 
         data_normalization_bridge = DataNormalizationInterface(robot=robot, data_stats=runtime_params.read_stats_file())
 
-        # print("Starting inference loop...")
-
         while True:  # Outer loop - per episode
             # Signal ready for new episode
             current_weights = ray.get(policy_state_manager_handle.get_state.remote())
             if current_weights is not None:
-                # for model_name, model in _policy.components.items():
-                #     sd_cpu = current_weights[model_name]   # <-- critical fix
-                #     missing, unexpected = load_state_dict_cpu_into_module(model, sd_cpu, strict=True)
-                #     print(f"Model {model_name} weights updated")
+                for model_name in current_weights.keys():
+                    if model_name in policy.components.keys():
+                        missing, unexpected = load_state_dict_cpu_into_module(policy.components[model_name], 
+                                                                            current_weights[model_name], 
+                                                                            strict=True)
+                        print(f"{model_name} weights updated")
                 print("Policy weights updated successfully")
 
             print("Signaling inference ready...")
@@ -167,26 +131,13 @@ def start_inference(
                 # Atomically read state from SharedMemory
                 # should be torch tensor
                 input_data = shm_manager.atomic_read_for_inference()
-                print(f"Inference triggered: {input_data['num_control_iters']} actions executed")
 
-                # Normalize observations and prev_action_chunk
-                # normalized_input_data = self.data_normalization_bridge.normalize_state_action(input_data)
-                print("action inference...")
                 with torch.inference_mode() and torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-                    pred_actions = policy.predict(obs=input_data, noise=None)
-                print(f"delay: {input_data['est_delay']}")
-                # blend_steps = max(1, min(input_data['est_delay'], 
-                #                          min_num_actions_executed - input_data['est_delay']))
-                weights = _compute_guided_prefix_weights(
-                    input_data['est_delay'],
-                    min_num_actions_executed, # executed steps
-                    runtime_params.action_chunk_size, # total
-                    schedule="exp",
-                ).reshape(-1, 1)
-                next_actions = input_data['prev_action'] * weights + pred_actions * (1.0 - weights)
-                
-                # Denormalize and write new action chunk
-                # denormalized_actions = self.data_normalization_bridge.denormalize_action(pred_actions)
+                    # TODO: Normalize observations and prev_action_chunk
+                    # TODO: Denormalize action output
+                    #input_data['normalized_proprio'] = data_normalization_bridge.normalize_state()
+                    next_actions = policy.guided_inference(input_data)
+
                 shm_manager.write_action_chunk_n_update_iter_val(
                     next_actions, input_data['num_control_iters']
                 )

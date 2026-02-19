@@ -4,7 +4,7 @@ IGRIS_C Data Manager Bridge - Interface Stub
 This is a skeleton implementation documenting the required interface.
 Complete implementation pending IGRIS_C hardware specifications.
 
-Reference: /env_actor/auto/data_manager/igris_b/data_manager_bridge.py
+Reference: /env_actor/auto/data_manager/robots/igris_b/data_manager_bridge.py
 """
 
 import numpy as np

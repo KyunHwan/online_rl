@@ -2,9 +2,9 @@ class DataManagerInterface:
     def __init__(self, runtime_params, robot):
         self.data_manager_bridge = None
         if robot == "igris_b":
-            from env_actor.human_in_the_loop.inference_algorithms.sequential.data_manager.igris_b.data_manager_bridge import DataManagerBridge
+            from .robots.igris_b.data_manager_bridge import DataManagerBridge
         elif robot == "igris_c":
-            from env_actor.human_in_the_loop.inference_algorithms.sequential.data_manager.igris_c.data_manager_bridge import DataManagerBridge
+            from .robots.igris_c.data_manager_bridge import DataManagerBridge
         self.data_manager_bridge = DataManagerBridge(runtime_params=runtime_params)
 
     @property

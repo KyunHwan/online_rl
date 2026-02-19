@@ -26,9 +26,9 @@ class SharedMemoryInterface:
                  inference_ready_flag: Value,
                  is_creator: bool = False,):
         if robot == "igris_b":
-            from env_actor.auto.inference_algorithms.rtc.data_manager.igris_b.shm_manager_bridge import SharedMemoryManager
+            from env_actor.auto.inference_algorithms.rtc.data_manager.robots.igris_b.shm_manager_bridge import SharedMemoryManager
         elif robot == "igris_c":
-            from env_actor.auto.inference_algorithms.rtc.data_manager.igris_c.shm_manager_bridge import SharedMemoryManager
+            from env_actor.auto.inference_algorithms.rtc.data_manager.robots.igris_c.shm_manager_bridge import SharedMemoryManager
         self.shm_manager = SharedMemoryManager.attach_from_specs(
             shm_specs=shm_specs,
             lock=lock,

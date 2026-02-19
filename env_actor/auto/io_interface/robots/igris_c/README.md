@@ -94,9 +94,9 @@ When hardware specs become available, implement in this order:
 ## Reference Implementation: IGRIS_B
 
 Use IGRIS_B as a reference template:
-- Controller Bridge: `/env_actor/auto/io_interface/igris_b/controller_bridge.py`
-- Data Manager Bridge: `/env_actor/auto/data_manager/igris_b/data_manager_bridge.py`
-- Runtime Params: `/env_actor/runtime_settings_configs/igris_b/`
+- Controller Bridge: `/env_actor/auto/io_interface/robots/igris_b/controller_bridge.py`
+- Data Manager Bridge: `/env_actor/auto/data_manager/robots/igris_b/data_manager_bridge.py`
+- Runtime Params: `/env_actor/runtime_settings_configs/robots/igris_b/`
 
 ### Key Differences to Consider
 

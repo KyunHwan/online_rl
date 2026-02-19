@@ -68,7 +68,7 @@ def build_policy(
         raise ValueError("policy.type must be set in policy config")
 
     if not POLICY_REGISTRY.has(policy_type):
-        module_path = f"env_actor.policy.{policy_type}.{policy_type}"
+        module_path = f"env_actor.policy.policies.{policy_type}.{policy_type}"
         importlib.import_module(module_path)
 
     policy_cls = POLICY_REGISTRY.get(policy_type)

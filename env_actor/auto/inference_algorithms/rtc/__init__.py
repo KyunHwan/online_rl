@@ -12,7 +12,7 @@ Components:
 The SharedMemoryManager replaces the Ray-based RTCStateActor to eliminate
 Ray actor communication overhead for high-frequency state operations.
 """
-from .data_manager.igris_b.shm_manager_bridge import SharedMemoryManager
+from .data_manager.robots.igris_b.shm_manager_bridge import SharedMemoryManager
 from .data_manager.utils.utils import ShmArraySpec, create_shared_ndarray
 from .inference_actor import InferenceActor
 from .control_actor import ControllerActor

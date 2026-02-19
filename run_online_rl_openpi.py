@@ -20,7 +20,7 @@ from ray.train.torch import TorchTrainer
 from ray.train import ScalingConfig
 
 from data_bridge.replay_buffer import ReplayBufferActor
-from data_bridge.policy_state_manager import PolicyStateManagerActor
+from data_bridge.state_manager import StateManagerActor
 
 from trainer.trainer.online_trainer import train_func
 
@@ -74,8 +74,10 @@ def start_online_rl(train_config_path,
         # via which the data reaches the replay buffer.
         episode_queue = RayQueue(maxsize=RAYQUEUE_MAXSIZE) # This sets the maxsize of the Queue to be 10 elements
 
-        policy_state_manager = PolicyStateManagerActor.options(resources={"training_pc": 1},
+        policy_state_manager = StateManagerActor.options(resources={"training_pc": 1},
                                                             name="policy_state_manager").remote()
+        norm_stats_state_manager = StateManagerActor.options(resources={"training_pc": 1},
+                                                           name="norm_stats_state_manager").remote()
         replay_buffer = ReplayBufferActor.options(resources={"training_pc": 1},
                                                 name="replay_buffer").remote(slice_len=80)
 
@@ -126,6 +128,7 @@ def start_online_rl(train_config_path,
                                 robot=robot,
                                 policy_yaml_path=policy_yaml_path,
                                 policy_state_manager_handle=policy_state_manager,
+                                norm_stats_state_manager_handle = norm_stats_state_manager,
                                 episode_queue_handle=episode_queue,
                             )
         print("running env_actor...")
@@ -215,3 +218,38 @@ if __name__ == "__main__":
         args.ckpt_dir,
         args.default_prompt
     )
+
+
+
+
+    # parser = argparse.ArgumentParser(description="Run pi05_igris (openpi) inference")
+    # parser.add_argument(
+    #     "--ckpt_dir", "-C", type=str,
+    #     default="/home/robros/Projects/robros_vla_inference_engine/openpi_film/checkpoints/pi05_igris/pi05_igris_b_pnp_v3.3.2/film_15000",
+    #     help="Path to OpenPI checkpoint step directory (contains model.safetensors + assets/)",
+    # )
+    # parser.add_argument("--robot", required=True, choices=["igris_b", "igris_c"])
+    # parser.add_argument(
+    #     "--inference_runtime_params_config", 
+    #     default="./env_actor/runtime_settings_configs/igris_b/inference_runtime_params.json",
+    #     help="Path to inference runtime params JSON config",
+    # )
+    # parser.add_argument(
+    #     "--inference_runtime_topics_config", 
+    #     default="./env_actor/runtime_settings_configs/igris_b/inference_runtime_topics.json",
+    #     help="Path to inference runtime topics config",
+    # )
+    # parser.add_argument(
+    #     "--default_prompt", type=str,
+    #     default="Pick up objects on the table with the left hand and place them into the box.",
+    #     help="Default language prompt for the policy (e.g., 'pick and place')",
+    # )
+    # args = parser.parse_args()
+
+    # start_openpi_inference(
+    #     ckpt_dir=args.ckpt_dir,
+    #     robot=args.robot,
+    #     inference_runtime_params_config=args.inference_runtime_params_config,
+    #     inference_runtime_topics_config=args.inference_runtime_topics_config,
+    #     default_prompt=args.default_prompt,
+    # )

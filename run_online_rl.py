@@ -20,7 +20,7 @@ from ray.train.torch import TorchTrainer
 from ray.train import ScalingConfig
 
 from data_bridge.replay_buffer import ReplayBufferActor
-from data_bridge.policy_state_manager import PolicyStateManagerActor
+from data_bridge.state_manager import StateManagerActor
 
 from trainer.trainer.online_trainer import train_func
 
@@ -63,8 +63,10 @@ def start_online_rl(train_config_path, policy_yaml_path, robot, human_reward_lab
     # via which the data reaches the replay buffer.
     episode_queue = RayQueue(maxsize=RAYQUEUE_MAXSIZE) # This sets the maxsize of the Queue to be 10 elements
 
-    policy_state_manager = PolicyStateManagerActor.options(resources={"training_pc": 1},
+    policy_state_manager = StateManagerActor.options(resources={"training_pc": 1},
                                                            name="policy_state_manager").remote()
+    norm_stats_state_manager = StateManagerActor.options(resources={"training_pc": 1},
+                                                           name="norm_stats_state_manager").remote()
     replay_buffer = ReplayBufferActor.options(resources={"training_pc": 1},
                                               name="replay_buffer").remote(slice_len=80)
 

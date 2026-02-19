@@ -30,15 +30,16 @@ def start_control(
     import json
     import numpy as np
 
+    from ..data_manager.data_normalization_interface import DataNormalizationInterface
     from env_actor.episode_recorder.episode_recorder_interface import EpisodeRecorderInterface
     from env_actor.auto.io_interface.controller_interface import ControllerInterface
     from ..data_manager.shm_manager_interface import SharedMemoryInterface
     
     # Load robot-specific RuntimeParams
     if robot == "igris_b":
-        from env_actor.runtime_settings_configs.igris_b.inference_runtime_params import RuntimeParams
-    # elif robot == "igris_c":
-    #     from env_actor.runtime_settings_configs.igris_c.inference_runtime_params import RuntimeParams
+        from env_actor.runtime_settings_configs.robots.igris_b.inference_runtime_params import RuntimeParams
+    elif robot == "igris_c":
+        from env_actor.runtime_settings_configs.robots.igris_c.inference_runtime_params import RuntimeParams
     else:
         raise ValueError(f"Unknown robot: {robot}")
 
@@ -74,6 +75,8 @@ def start_control(
     )
 
     episode_recorder = EpisodeRecorderInterface(robot=robot)
+
+    data_normalization_bridge = DataNormalizationInterface(robot=robot, data_stats=runtime_params.read_stats_file())
 
     # Episode configuration
     episode_length = 100  # Control steps per episode

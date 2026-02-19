@@ -13,7 +13,7 @@ class Policy(Protocol):
 
     def __init__(self, components: dict[str, nn.Module], **kwargs: Any) -> None: ...
 
-    def guided_inference(self, input_data: dict[str, nn.Module]):
+    def guided_inference(self, input_data: dict,):
         """
         Uses inpainting technique from Real-Time Execution of Action Chunking Flow Policies
         https://arxiv.org/pdf/2506.07339

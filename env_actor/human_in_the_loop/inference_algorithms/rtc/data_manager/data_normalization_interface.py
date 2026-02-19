@@ -6,9 +6,9 @@ class DataNormalizationInterface:
                  robot,
                  data_stats):
         if robot == 'igris_b':
-            from .igris_b.data_normalization_manager import DataNormalizationBridge
+            from .robots.igris_b.data_normalization_manager import DataNormalizationBridge
         elif robot == 'igris_c': 
-            from .igris_c.data_normalization_manager import DataNormalizationBridge
+            from .robots.igris_c.data_normalization_manager import DataNormalizationBridge
         
         self.data_normalizer = DataNormalizationBridge(data_stats)
     

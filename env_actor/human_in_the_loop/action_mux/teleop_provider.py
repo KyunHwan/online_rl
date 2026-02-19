@@ -10,8 +10,8 @@ from abc import ABC, abstractmethod
 import numpy as np
 from rclpy.executors import SingleThreadedExecutor
 
-from env_actor.human_in_the_loop.teleoperation.igris_b.arms_dynamixel import DxlMasterArm
-from env_actor.human_in_the_loop.teleoperation.igris_b.hands_manus import ManusUDPReceiver
+from env_actor.human_in_the_loop.teleoperation.robots.igris_b.arms_dynamixel import DxlMasterArm
+from env_actor.human_in_the_loop.teleoperation.robots.igris_b.hands_manus import ManusUDPReceiver
 
 
 class TeleopProvider(ABC):

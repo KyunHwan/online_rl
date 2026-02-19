@@ -1,8 +1,8 @@
 from typing import Any
 import numpy as np
 import torch
-from env_actor.runtime_settings_configs.igris_b.inference_runtime_params import RuntimeParams
-from env_actor.runtime_settings_configs.igris_b.init_params import (
+from env_actor.runtime_settings_configs.robots.igris_b.inference_runtime_params import RuntimeParams
+from env_actor.runtime_settings_configs.robots.igris_b.init_params import (
     INIT_JOINT_LIST,
     INIT_HAND_LIST,
     INIT_JOINT,

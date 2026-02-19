@@ -42,6 +42,7 @@ class SequentialActor:
         robot,
         policy_yaml_path,
         policy_state_manager_handle,
+        norm_stats_state_manager_handle,
         episode_queue_handle,
     ):
         """
@@ -66,6 +67,7 @@ class SequentialActor:
         self.episode_recorder = EpisodeRecorderInterface(robot=robot)
 
         self.policy_state_manager_handle = policy_state_manager_handle
+        self.norm_stats_state_manager_handle = norm_stats_state_manager_handle
         self.episode_queue_handle = episode_queue_handle
 
     def start(self) -> None:
@@ -82,17 +84,24 @@ class SequentialActor:
 
         while True:
             if episode >= 0:
-                current_weights_ref = self.policy_state_manager_handle.get_weights.remote()
-                current_weights = ray.get(current_weights_ref)
+                # Signal ready for new episode
+                current_weights = ray.get(self.policy_state_manager_handle.get_state.remote())
                 if current_weights is not None:
-                    for model_name, model in self.policy.components.items():
-                        sd_cpu = current_weights[model_name]   # <-- critical fix
-                        missing, unexpected = load_state_dict_cpu_into_module(model, sd_cpu, strict=True)
+                    for model_name in current_weights.keys():
+                        if model_name in self.policy.components.keys():
+                            missing, unexpected = load_state_dict_cpu_into_module(self.policy.components[model_name], 
+                                                                                current_weights[model_name], 
+                                                                                strict=True)
+                            print(f"{model_name} weights updated")
+                    print("Policy weights updated successfully")
 
                 sub_eps = self.episode_recorder.serve_train_data_buffer(episode)
                 for sub_ep in sub_eps:
+                    # labeling
                     sub_ep_data_ref = ray.put(sub_ep)
                     self.episode_queue_handle.put(sub_ep_data_ref, block=True)
+                    # trainer
+
                 
             self.episode_recorder.init_train_data_buffer()
 
@@ -165,56 +174,3 @@ class SequentialActor:
             print("Episode finished !!")
 
             episode += 1
-
-
-"""
-import ray
-import torch
-
-@ray.remote(num_gpus=1)
-class SequentialActor:
-    def __init__(self, 
-                 policy_state_manager_handle, 
-                 episode_queue_handle,
-                 inference_config_path):
-        self.policy_state_manager_handle = policy_state_manager_handle
-        self.episode_queue_handle = episode_queue_handle
-        self.inference_config_path = inference_config_path
-        self.policy = None
-
-    def start(self):
-        while True:
-            current_weights_ref = self.policy_state_manager_handle.get_weights.remote()
-            current_weights = ray.get(current_weights_ref)
-            if current_weights is not None:
-                new_weights = current_weights # Zero-copy fetch
-                print("weights updated: ", new_weights.keys())
-                #self.policy.load_state_dict(new_weights)
-
-
-
-@ray.remote
-class ControllerActor:
-    def __init__(self, 
-                 episode_queue_handle, 
-                 inference_config_path, 
-                 shared_memory_names):
-        self.episode_queue_handle = episode_queue_handle
-        self.inference_config_path = inference_config_path
-    
-    def start(self,):
-        episodic_data = []
-        while True:
-            if len(episodic_data) != 0:
-                # wait until there's room to put the data in the queue
-                episodic_data_ref = ray.put(TensorDict.stack(episodic_data, dim=0))
-                self.episode_queue_handle.put(episodic_data_ref,
-                                              block=True)
-            episodic_data = []
-            for step in range(900):
-                episodic_data.append(TensorDict({
-                    'reward': torch.randn(40, 24),
-                    'action': torch.ones(40,24),
-                    'state': torch.zeros(40, 24)
-                }, batch_size=[]))
-"""

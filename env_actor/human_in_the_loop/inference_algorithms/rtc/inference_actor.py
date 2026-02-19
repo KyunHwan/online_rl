@@ -152,7 +152,7 @@ class InferenceActor:
 
         while True:  # Outer loop - per episode
             # Signal ready for new episode
-            current_weights = ray.get(self.policy_state_manager_handle.get_weights.remote())
+            current_weights = ray.get(self.policy_state_manager_handle.get_state.remote())
             if current_weights is not None:
                 for model_name, model in self.policy.components.items():
                     sd_cpu = current_weights[model_name]   # <-- critical fix

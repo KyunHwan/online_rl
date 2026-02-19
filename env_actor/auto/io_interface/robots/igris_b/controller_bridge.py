@@ -1,4 +1,4 @@
-from env_actor.runtime_settings_configs.igris_b.init_params import (
+from env_actor.runtime_settings_configs.robots.igris_b.init_params import (
     INIT_JOINT_LIST,
     INIT_HAND_LIST,
     INIT_JOINT,
@@ -17,7 +17,7 @@ from std_msgs.msg import Float32MultiArray, Bool
 from sensor_msgs.msg import JointState
 from .utils.data_dict import GenericRecorder
 from .utils.camera_utils import RBRSCamera
-from env_actor.runtime_settings_configs.igris_b.inference_runtime_params import RuntimeParams
+from env_actor.runtime_settings_configs.robots.igris_b.inference_runtime_params import RuntimeParams
 
 class ControllerBridge:
     """

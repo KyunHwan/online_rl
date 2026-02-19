@@ -16,7 +16,7 @@ from env_actor.auto.inference_algorithms.rtc.data_manager.utils.utils import Shm
 from multiprocessing import Value, resource_tracker
 from multiprocessing.shared_memory import SharedMemory
 from typing import TYPE_CHECKING
-from env_actor.runtime_settings_configs.igris_b.init_params import (
+from env_actor.runtime_settings_configs.robots.igris_b.init_params import (
     INIT_JOINT_LIST,
     INIT_HAND_LIST,
 )
@@ -24,7 +24,7 @@ from env_actor.runtime_settings_configs.igris_b.init_params import (
 import torch
 import numpy as np
 
-from ...inference_engine_utils.max_deque import MaxDeque
+from env_actor.auto.inference_algorithms.rtc.inference_engine_utils.max_deque import MaxDeque
 
 from multiprocessing.synchronize import Condition as ConditionType
 from multiprocessing.synchronize import Event as EventType

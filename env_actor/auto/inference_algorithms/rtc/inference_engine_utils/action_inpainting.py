@@ -16,6 +16,7 @@ def guided_action_chunk_inference(
     num_queries: int,
     action_dim: int,
     max_guidance_weight: float = 5.0,
+    input_noise = None
 ) -> torch.Tensor:
     """
     Stateless real-time action chunking routine for flow-matching policies.
@@ -58,7 +59,7 @@ def guided_action_chunk_inference(
     weights = compute_prefix_weights(delay, executed_steps, num_queries, schedule="exp").view(1, num_queries, 1)
 
     max_guidance_tensor = torch.tensor(max_guidance_weight, device=device, dtype=torch.float32)
-
+    
     actions_hat = torch.randn(
         batch_size,
         num_queries,
@@ -66,7 +67,8 @@ def guided_action_chunk_inference(
         device=device,
         dtype=torch.float32,
         requires_grad=True,
-    )
+    ) if input_noise is None else input_noise
+    
     with torch.enable_grad():
         for step in range(num_ode_sim_steps):
             tau = step / float(num_ode_sim_steps)

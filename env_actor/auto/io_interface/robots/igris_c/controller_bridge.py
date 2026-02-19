@@ -4,7 +4,7 @@ IGRIS_C Controller Bridge - Interface Stub
 This is a skeleton implementation documenting the required interface.
 Complete implementation pending IGRIS_C hardware specifications and communication protocol.
 
-Reference: /env_actor/auto/io_interface/igris_b/controller_bridge.py
+Reference: /env_actor/auto/io_interface/robots/igris_b/controller_bridge.py
 """
 
 import numpy as np
