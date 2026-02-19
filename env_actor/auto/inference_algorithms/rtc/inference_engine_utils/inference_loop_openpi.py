@@ -3,7 +3,7 @@ import math
 
 def _compute_guided_prefix_weights(
     delay_steps: int,
-    executed_steps: int,
+    executed: int,
     total: int,
     *,
     schedule: str = "exp",
@@ -12,8 +12,8 @@ def _compute_guided_prefix_weights(
     start = max(min(int(delay_steps), total), 0)
     if start >= total:
         return np.ones(total, dtype=np.float32)
-    span = max(int(executed_steps), 1)
-    #span = min(span, max(total - start, 1))
+    span = max(int(executed), 1)
+    span = min(span, max(total - start, 1))
     
     indices = np.arange(total, dtype=np.float32)
     if schedule == "ones":
@@ -106,6 +106,15 @@ def start_inference(
                 device=str(device),
                 default_prompt=default_prompt,
             )
+        
+        # Warm up CUDA (once, outside all loops)
+        print("Warming up CUDA kernels...")
+        with torch.no_grad():
+            try:
+                policy.warmup()
+            except Exception as e:
+                print(f"Warmup encountered error (may be expected for minimal inputs): {e}")
+
         #policy.eval()
 
         # Create SharedMemoryManager from specs (attaches to existing SharedMemory)
@@ -124,14 +133,6 @@ def start_inference(
         policy_state_manager_handle = ray.get_actor("policy_state_manager")
 
         data_normalization_bridge = DataNormalizationInterface(robot=robot, data_stats=runtime_params.read_stats_file())
-
-        # Warm up CUDA (once, outside all loops)
-        print("Warming up CUDA kernels...")
-        with torch.no_grad():
-            try:
-                policy.warmup()
-            except Exception as e:
-                print(f"Warmup encountered error (may be expected for minimal inputs): {e}")
 
         # print("Starting inference loop...")
 
@@ -174,11 +175,11 @@ def start_inference(
                 with torch.inference_mode() and torch.autocast(device_type="cuda", dtype=torch.bfloat16):
                     pred_actions = policy.predict(obs=input_data, noise=None)
                 print(f"delay: {input_data['est_delay']}")
-                blend_steps = max(1, min(input_data['est_delay'], 
-                                         min_num_actions_executed - input_data['est_delay']))
+                # blend_steps = max(1, min(input_data['est_delay'], 
+                #                          min_num_actions_executed - input_data['est_delay']))
                 weights = _compute_guided_prefix_weights(
                     input_data['est_delay'],
-                    blend_steps, # executed steps
+                    min_num_actions_executed, # executed steps
                     runtime_params.action_chunk_size, # total
                     schedule="exp",
                 ).reshape(-1, 1)
