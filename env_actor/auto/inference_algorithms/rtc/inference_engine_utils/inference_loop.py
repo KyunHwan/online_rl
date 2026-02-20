@@ -1,4 +1,35 @@
 import numpy as np
+import math
+
+def _compute_guided_prefix_weights(
+    delay_steps: int,
+    executed: int,
+    total: int,
+    *,
+    schedule: str = "exp",
+) -> np.ndarray:
+    """Guided-inference prefix weighting for blending neighboring action chunks."""
+    start = max(min(int(delay_steps), total), 0)
+    if start >= total:
+        return np.ones(total, dtype=np.float32)
+    span = max(int(executed), 1)
+    span = min(span, max(total - start, 1))
+    
+    indices = np.arange(total, dtype=np.float32)
+    if schedule == "ones":
+        return np.ones(total, dtype=np.float32)
+    if schedule == "zeros":
+        return (indices < start).astype(np.float32)
+    weights = np.zeros(total, dtype=np.float32)
+    weights[:start] = 1.0
+    denom = total - span - start + 1
+    if denom > 0 and (total - span) > start:
+        c_i = (total - span - indices) / float(denom)
+        inter_vals = c_i * np.expm1(c_i) / (math.e - 1.0)
+        weights[start : total - span] = inter_vals[start : total - span]
+    weights[total - span :] = 0.0
+    return weights
+
 
 def start_inference(
         robot,
@@ -133,7 +164,15 @@ def start_inference(
                     # TODO: Normalize observations and prev_action_chunk
                     # TODO: Denormalize action output
                     #input_data['normalized_proprio'] = data_normalization_bridge.normalize_state()
-                    next_actions = policy.predict(input_data)
+                    pred_actions = policy.predict(input_data)
+
+                weights = _compute_guided_prefix_weights(
+                    input_data['est_delay'],
+                    min_num_actions_executed, # executed steps
+                    runtime_params.action_chunk_size, # total
+                    schedule="exp",
+                ).reshape(-1, 1)
+                next_actions = input_data['prev_action'] * weights + pred_actions * (1.0 - weights)
 
                 shm_manager.write_action_chunk_n_update_iter_val(
                     next_actions, input_data['num_control_iters']
