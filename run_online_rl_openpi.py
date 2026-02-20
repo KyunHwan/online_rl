@@ -170,8 +170,8 @@ if __name__ == "__main__":
                         default="/home/user/Projects/online_rl/trainer/experiment_training/imitation_learning/vfp_single_expert/exp2/vfp_single_expert_depth.yaml",
                         help="absolute path to the train config .yaml file.")
     parser.add_argument("--policy_yaml", 
-                        default=".",
-                        help="absolute path to the policy config .yaml file.")
+                        default="./env_actor/policy/policies/openpi_policy/openpi_policy.yaml",
+                        help="path to the policy config .yaml file.")
     parser.add_argument("--robot", 
                         default="igris_b",
                         help="igris_b or igris_c")
