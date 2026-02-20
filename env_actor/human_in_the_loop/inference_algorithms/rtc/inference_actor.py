@@ -83,8 +83,8 @@ class InferenceActor:
         # Build policy using env_actor loader
         self.policy = build_policy(
             policy_yaml_path=policy_yaml_path,
-            map_location=self.device,
-        )
+            map_location="cpu",
+        ).to(self.device)
 
         # Freeze all parameters (required for VJP in guided inference)
         self.policy.eval()

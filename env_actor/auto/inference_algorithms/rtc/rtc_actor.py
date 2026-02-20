@@ -8,7 +8,7 @@ from ctypes import c_bool
 #from multiprocessing import Process, resource_tracker, Condition, Event, RLock, Value
 
 @ray.remote(num_gpus=1, num_cpus=4)
-class RTCActorOpenpi:
+class RTCActor:
     def __init__(self,
                  robot,
                  policy_yaml_path,
@@ -17,9 +17,6 @@ class RTCActorOpenpi:
                  min_num_actions_executed,
 
                  episode_queue_handle,
-
-                 ckpt_dir,
-                 default_prompt=None,
                  ):
         # Standard
         self.robot = robot
@@ -30,10 +27,6 @@ class RTCActorOpenpi:
 
         # Ray
         self.episode_queue_handle = episode_queue_handle
-
-        # Openpi
-        self.ckpt_dir = ckpt_dir
-        self.default_prompt = default_prompt
     
     def start(self):
         from ray import cloudpickle
@@ -41,7 +34,7 @@ class RTCActorOpenpi:
         from multiprocessing import resource_tracker
         from env_actor.auto.inference_algorithms.rtc.data_manager.utils.utils import create_shared_ndarray
         from .inference_engine_utils.control_loop import start_control
-        from .inference_engine_utils.inference_loop_openpi import start_inference
+        from .inference_engine_utils.inference_loop import start_inference
 
         # Load robot-specific RuntimeParams
         if self.robot == "igris_b":
@@ -104,8 +97,6 @@ class RTCActorOpenpi:
             target=start_inference,
             args=(
                 self.robot,
-                self.ckpt_dir,
-                self.default_prompt,
                 self.policy_yaml_path,
                 self.min_num_actions_executed,
                 self.inference_runtime_params_config,

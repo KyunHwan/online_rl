@@ -1,0 +1,32 @@
+schema_version: 1
+
+params:
+  train_config_name: "pi05_igris"
+  ckpt_dir: "/home/robros/Projects/robros_vla_inference_engine/openpi_film/checkpoints/pi05_igris/pi05_igris_b_pnp_v3.3.2/film_15000"
+  default_prompt: "Pick up objects on the table with the left hand and place them into the box."
+  action_dim: 24
+  action_horizon: 50
+  num_inference_steps: 10
+  gradient_checkpointing: false
+
+model:
+  graph:
+    inputs: [observation, noise]
+    modules:
+      openpi_model:
+        _type_: openpi_batched
+        train_config_name: ${params.train_config_name}
+        ckpt_dir: ${params.ckpt_dir}
+        default_prompt: ${params.default_prompt}
+        action_dim: ${params.action_dim}
+        action_horizon: ${params.action_horizon}
+        num_inference_steps: ${params.num_inference_steps}
+        gradient_checkpointing: ${params.gradient_checkpointing}
+    nodes:
+      - name: predicted_actions
+        call: module:openpi_model
+        kwargs:
+          obs: $observation
+          noise: $noise
+    outputs: [$predicted_actions]
+    return: single

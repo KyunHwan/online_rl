@@ -32,8 +32,6 @@ def _compute_guided_prefix_weights(
 
 def start_inference(
         robot,
-        ckpt_dir,
-        default_prompt,
         policy_yaml_path,
         min_num_actions_executed,
         inference_runtime_params_config,
@@ -95,18 +93,14 @@ def start_inference(
         - Outer loop handles per-episode transitions
         - Inner loop handles inference iterations within an episode
         """
-        # Build policy using env_actor loader
-        # _policy = build_policy(
-        #     policy_yaml_path=policy_yaml_path,
-        #     map_location=device,
-        # )
 
-        policy = Pi05IgrisVlaAdapter(
-                ckpt_dir=ckpt_dir,
-                device=str(device),
-                default_prompt=default_prompt,
-            )
-        
+        # Build policy using env_actor loader
+        policy = build_policy(
+            policy_yaml_path=policy_yaml_path,
+            map_location="cpu",
+        ).to(device)
+        policy.eval()
+
         # Warm up CUDA (once, outside all loops)
         print("Warming up CUDA kernels...")
         with torch.no_grad():
@@ -172,7 +166,7 @@ def start_inference(
                 # Normalize observations and prev_action_chunk
                 # normalized_input_data = self.data_normalization_bridge.normalize_state_action(input_data)
                 print("action inference...")
-                with torch.inference_mode() and torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                with torch.inference_mode(), torch.autocast(device_type="cuda", dtype=torch.bfloat16):
                     pred_actions = policy.predict(obs=input_data, noise=None)
                 print(f"delay: {input_data['est_delay']}")
                 # blend_steps = max(1, min(input_data['est_delay'], 

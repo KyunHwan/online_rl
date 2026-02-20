@@ -63,7 +63,7 @@ class SequentialActor:
             operator_name: str operator name for Manus glove calibration
         """
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.policy = build_policy(policy_yaml_path=policy_yaml_path, map_location=self.device)
+        self.policy = build_policy(policy_yaml_path=policy_yaml_path, map_location="cpu").to(self.device)
         self.controller_interface = ControllerInterface(runtime_params=runtime_params,
                                                         inference_runtime_topics_config=inference_runtime_topics_config,
                                                         robot=robot)

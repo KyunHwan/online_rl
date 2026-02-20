@@ -58,9 +58,7 @@ def start_online_rl(train_config_path,
                     human_reward_labeler, 
                     inference_runtime_params_config, 
                     inference_runtime_topics_config, 
-                    inference_algorithm, 
-                    ckpt_dir,
-                    default_prompt
+                    inference_algorithm,
                     ):
     # Initialize Ray
     if ray.is_initialized():
@@ -84,9 +82,9 @@ def start_online_rl(train_config_path,
         # Environment Actor
         # Load RuntimeParams to get dimensions for SharedMemory
         if robot == "igris_b":
-            from env_actor.runtime_settings_configs.igris_b.inference_runtime_params import RuntimeParams
+            from env_actor.runtime_settings_configs.robots.igris_b.inference_runtime_params import RuntimeParams
         elif robot == "igris_c":
-            from env_actor.runtime_settings_configs.igris_c.inference_runtime_params import RuntimeParams
+            from env_actor.runtime_settings_configs.robots.igris_c.inference_runtime_params import RuntimeParams
         else:
             raise ValueError(f"Unknown robot: {robot}")
         
@@ -101,21 +99,18 @@ def start_online_rl(train_config_path,
 
         # RTC (Real-Time Action Chunking)
         if inference_algorithm == 'rtc':
-            from env_actor.auto.inference_algorithms.rtc.rtc_actor_openpi import RTCActorOpenpi
+            from env_actor.auto.inference_algorithms.rtc.rtc_actor import RTCActor
 
-            env_actor = RTCActorOpenpi.\
+            env_actor = RTCActor.\
                 options(resources={"inference_pc": 1}).\
                 remote(
                     robot=robot,
                     policy_yaml_path=policy_yaml_path,
                     inference_runtime_params_config=inference_runtime_params_config,
                     inference_runtime_topics_config=inference_runtime_topics_config,
-                    min_num_actions_executed=15,
+                    min_num_actions_executed=35,
 
                     episode_queue_handle=episode_queue,
-
-                    ckpt_dir=ckpt_dir,
-                    default_prompt=default_prompt,
                 )
         else:
             # Sequential inference
@@ -193,16 +188,16 @@ if __name__ == "__main__":
                         default="rtc", 
                         choices=["sequential", "rtc"],
                         help="inference algorithm: 'sequential' or 'rtc' (real-time action chunking)")
-    parser.add_argument(
-        "--ckpt_dir", "-C", type=str,
-        default="/home/robros/Projects/robros_vla_inference_engine/openpi_film/checkpoints/pi05_igris/pi05_igris_b_pnp_v3.3.2/film_15000",
-        help="Path to OpenPI checkpoint step directory (contains model.safetensors + assets/)",
-    )
-    parser.add_argument(
-        "--default_prompt", type=str,
-        default="Pick up objects on the table and place them into the box.",
-        help="Default language prompt for the policy (e.g., 'pick and place')",
-    )
+    # parser.add_argument(
+    #     "--ckpt_dir", "-C", type=str,
+    #     default="/home/robros/Projects/robros_vla_inference_engine/openpi_film/checkpoints/pi05_igris/pi05_igris_b_pnp_v3.3.2/film_15000",
+    #     help="Path to OpenPI checkpoint step directory (contains model.safetensors + assets/)",
+    # )
+    # parser.add_argument(
+    #     "--default_prompt", type=str,
+    #     default="Pick up objects on the table and place them into the box.",
+    #     help="Default language prompt for the policy (e.g., 'pick and place')",
+    # )
     args = parser.parse_args()
     if args.train_config:
         args.train_config = os.path.abspath(args.train_config)
@@ -215,8 +210,8 @@ if __name__ == "__main__":
         args.inference_runtime_params_config,
         args.inference_runtime_topics_config,
         args.inference_algorithm,
-        args.ckpt_dir,
-        args.default_prompt
+        # args.ckpt_dir,
+        # args.default_prompt
     )
 
 

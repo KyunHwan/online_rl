@@ -105,7 +105,7 @@ class SequentialActorOpenpi:
                         raw_obs = self.data_manager_interface.get_raw_obs_arrays()
 
                         # Run openpi policy (handles all normalization internally)
-                        with torch.inference_mode() and torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                        with torch.inference_mode(), torch.autocast(device_type="cuda", dtype=torch.bfloat16):
                             raw_actions = self.policy.predict(obs=raw_obs, noise=None)
                         # raw_actions: np.float32 (action_horizon, action_dim) -- denormalized
 

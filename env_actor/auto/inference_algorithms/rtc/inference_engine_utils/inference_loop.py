@@ -2,8 +2,6 @@ import numpy as np
 
 def start_inference(
         robot,
-        ckpt_dir,
-        default_prompt,
         policy_yaml_path,
         min_num_actions_executed,
         inference_runtime_params_config,
@@ -44,7 +42,6 @@ def start_inference(
                 inference_runtime_params_config = json.load(f)
         runtime_params = RuntimeParams(inference_runtime_params_config)
 
-
         if isinstance(inference_runtime_topics_config, str):
             with open(inference_runtime_topics_config, 'r') as f:
                 inference_runtime_topics_config = json.load(f)
@@ -69,8 +66,8 @@ def start_inference(
         # Build policy using env_actor loader
         policy = build_policy(
             policy_yaml_path=policy_yaml_path,
-            map_location=device,
-        )
+            map_location="cpu",
+        ).to(device)
         policy.eval()
         
         # Warm up CUDA (once, outside all loops)
@@ -132,11 +129,11 @@ def start_inference(
                 # should be torch tensor
                 input_data = shm_manager.atomic_read_for_inference()
 
-                with torch.inference_mode() and torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                with torch.inference_mode(), torch.autocast(device_type="cuda", dtype=torch.bfloat16):
                     # TODO: Normalize observations and prev_action_chunk
                     # TODO: Denormalize action output
                     #input_data['normalized_proprio'] = data_normalization_bridge.normalize_state()
-                    next_actions = policy.guided_inference(input_data)
+                    next_actions = policy.predict(input_data)
 
                 shm_manager.write_action_chunk_n_update_iter_val(
                     next_actions, input_data['num_control_iters']

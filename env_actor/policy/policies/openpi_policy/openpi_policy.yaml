@@ -1,0 +1,6 @@
+model:
+  component_config_paths:
+    openpi_model: components/openpi_batched.yaml
+
+policy:
+  type: openpi_policy
