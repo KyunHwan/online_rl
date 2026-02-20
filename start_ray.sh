@@ -7,7 +7,7 @@ HOSTNAME=$(hostname)
 case "$HOSTNAME" in
   robros-ai1)
     ray start --head --port=6379 \
-      --resources='{"training_pc": 4}'
+      --resources='{"training_pc": 3}'
     ;;
   robros-MS-7E59)
     ray start --address=${HEAD_IP}:6379 \

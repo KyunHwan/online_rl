@@ -74,8 +74,8 @@ def start_online_rl(train_config_path,
 
         policy_state_manager = StateManagerActor.options(resources={"training_pc": 1},
                                                             name="policy_state_manager").remote()
-        norm_stats_state_manager = StateManagerActor.options(resources={"training_pc": 1},
-                                                           name="norm_stats_state_manager").remote()
+        # norm_stats_state_manager = StateManagerActor.options(resources={"training_pc": 1},
+        #                                                    name="norm_stats_state_manager").remote()
         replay_buffer = ReplayBufferActor.options(resources={"training_pc": 1},
                                                 name="replay_buffer").remote(slice_len=80)
 
@@ -112,20 +112,20 @@ def start_online_rl(train_config_path,
 
                     episode_queue_handle=episode_queue,
                 )
-        else:
-            # Sequential inference
-            from env_actor.auto.inference_algorithms.sequential.sequential_actor import SequentialActor
-            env_actor = SequentialActor.\
-                            options(resources={"inference_pc": 1}, num_cpus=4, num_gpus=1).\
-                            remote(
-                                inference_runtime_params_config=inference_runtime_params_config,
-                                inference_runtime_topics_config=inference_runtime_topics_config,
-                                robot=robot,
-                                policy_yaml_path=policy_yaml_path,
-                                policy_state_manager_handle=policy_state_manager,
-                                norm_stats_state_manager_handle = norm_stats_state_manager,
-                                episode_queue_handle=episode_queue,
-                            )
+        # else:
+        #     # Sequential inference
+        #     from env_actor.auto.inference_algorithms.sequential.sequential_actor import SequentialActor
+        #     env_actor = SequentialActor.\
+        #                     options(resources={"inference_pc": 1}, num_cpus=4, num_gpus=1).\
+        #                     remote(
+        #                         inference_runtime_params_config=inference_runtime_params_config,
+        #                         inference_runtime_topics_config=inference_runtime_topics_config,
+        #                         robot=robot,
+        #                         policy_yaml_path=policy_yaml_path,
+        #                         policy_state_manager_handle=policy_state_manager,
+        #                         norm_stats_state_manager_handle = norm_stats_state_manager,
+        #                         episode_queue_handle=episode_queue,
+        #                     )
         print("running env_actor...")
         env_actor.start.remote()
 
@@ -179,10 +179,10 @@ if __name__ == "__main__":
                         action="store_true", 
                         help="whether reward labeling is done by a human")
     parser.add_argument("--inference_runtime_params_config", 
-                        default="/home/robros/Projects/online_rl/env_actor/runtime_settings_configs/igris_b/inference_runtime_params.json",
+                        default="/home/robros/Projects/online_rl/env_actor/runtime_settings_configs/robots/igris_b/inference_runtime_params.json",
                         help="absolute path to the inference runtime params config file.")
     parser.add_argument("--inference_runtime_topics_config", 
-                        default="/home/robros/Projects/online_rl/env_actor/runtime_settings_configs/igris_b/inference_runtime_topics.json",
+                        default="/home/robros/Projects/online_rl/env_actor/runtime_settings_configs/robots/igris_b/inference_runtime_topics.json",
                         help="absolute path to the inference runtime topics config file.")
     parser.add_argument("--inference_algorithm", 
                         default="rtc", 
