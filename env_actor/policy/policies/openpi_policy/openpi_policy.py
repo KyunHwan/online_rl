@@ -33,7 +33,8 @@ class OpenPiPolicy:
     """
 
     def __init__(self, components: dict[str, nn.Module], **kwargs: Any) -> None:
-        self._wrapper = self._resolve_wrapper(components)
+        self.components = components
+        self._wrapper = self._resolve_wrapper(self.components)
 
         # Expose metadata from wrapper
         self.action_dim = self._wrapper.action_dim

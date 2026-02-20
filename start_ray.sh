@@ -16,6 +16,8 @@ fi
 
 case "$HOSTNAME" in
   robros-ai1)
+    ulimit -n 65535
+
     ray start --head --port=6379 \
       --node-ip-address=$TS_IP \
       --resources='{"training_pc": 3}'
