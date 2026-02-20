@@ -79,7 +79,7 @@ def start_control(
     data_normalization_bridge = DataNormalizationInterface(robot=robot, data_stats=runtime_params.read_stats_file())
 
     # Episode configuration
-    episode_length = 100  # Control steps per episode
+    episode_length = 1000  # Control steps per episode
 
     try:
         print("Starting state readers...")
