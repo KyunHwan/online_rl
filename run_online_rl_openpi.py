@@ -116,7 +116,7 @@ def start_online_rl(train_config_path,
             # Sequential inference
             from env_actor.auto.inference_algorithms.sequential.sequential_actor import SequentialActor
             env_actor = SequentialActor.\
-                            options(resources={"inference_pc": 1}).\
+                            options(resources={"inference_pc": 1}, num_cpus=4, num_gpus=1).\
                             remote(
                                 inference_runtime_params_config=inference_runtime_params_config,
                                 inference_runtime_topics_config=inference_runtime_topics_config,
