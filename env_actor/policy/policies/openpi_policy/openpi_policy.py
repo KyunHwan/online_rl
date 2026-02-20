@@ -15,6 +15,7 @@ import torch
 from torch import nn
 
 from env_actor.policy.registry import POLICY_REGISTRY
+from env_actor.inference_engine_utils.action_inpainting import compute_guided_prefix_weights
 
 
 @POLICY_REGISTRY.register("openpi_policy")
@@ -78,7 +79,7 @@ class OpenPiPolicy:
         return graph_model
 
     def predict(
-        self, obs: dict[str, Any], noise: np.ndarray | None = None
+        self, obs: dict[str, Any], data_normalization_interface
     ) -> np.ndarray:
         """Run inference on single-sample observations.
 
@@ -94,7 +95,7 @@ class OpenPiPolicy:
         """
         # Extract latest timestep and add batch dim
         batched_obs = {}
-        batched_obs["proprio"] = obs["proprio"][-1:].reshape(1, -1)
+        batched_obs["proprio"] = obs["proprio"][0].reshape(1, -1)
         for cam in ("head", "left", "right"):
             if cam in obs:
                 batched_obs[cam] = obs[cam][-1:].reshape(
@@ -104,17 +105,52 @@ class OpenPiPolicy:
             batched_obs["prompt"] = obs["prompt"]
 
         # Delegate to wrapper (returns (1, action_horizon, action_dim))
-        batched_actions = self._wrapper.predict(batched_obs, noise=noise)
+        batched_actions = self._wrapper.predict(batched_obs, noise=None)
 
         # Remove batch dimension
         return batched_actions[0]
 
-    def guided_inference(self, input_data: dict[str, Any]):
-        """Not implemented — openpi actors handle blending externally."""
-        raise NotImplementedError(
-            "OpenPiPolicy does not support guided_inference. "
-            "The openpi actors handle action chunk blending externally."
-        )
+    def guided_inference(self, input_data: dict[str, Any], min_num_actions_executed, action_chunk_size) -> np.ndarray:
+        """Run inference on single-sample observations.
+
+        Accepts the same observation format as Pi05IgrisVlaAdapter.predict():
+        - input_data["proprio"]: (num_robot_obs, state_dim) float32
+        - input_data["head"/"left"/"right"]: (num_img_obs, 3, H, W) uint8
+        - input_data["est_delay"]: estimated inference time int
+        - input_data['prev_action']: previous action that has not been executed yet (action_chunk_size, action_dim)
+
+        Extracts the latest observation, adds a batch dimension, delegates
+        to OpenPiBatchedWrapper.predict(), then removes the batch dimension.
+
+        Returns:
+            np.float32 array of shape (action_chunk_size, action_dim).
+        """
+        # Extract latest timestep and add batch dim
+        batched_obs = {}
+        batched_obs["proprio"] = input_data["proprio"][0].reshape(1, -1)
+        for cam in ("head", "left", "right"):
+            if cam in input_data:
+                batched_obs[cam] = input_data[cam][-1:].reshape(
+                    1, *input_data[cam][-1].shape
+                )
+        if "prompt" in input_data:
+            batched_obs["prompt"] = input_data["prompt"]
+
+        # Delegate to wrapper (returns (1, action_horizon, action_dim))
+        batched_actions = self._wrapper.predict(batched_obs, noise=None)
+
+        # Remove batch dimension
+        pred_actions = batched_actions[0]
+
+        weights = compute_guided_prefix_weights(
+                    input_data['est_delay'],
+                    min_num_actions_executed, # executed steps
+                    action_chunk_size, # total
+                    schedule="exp",
+                ).reshape(-1, 1)
+        next_actions = input_data['prev_action'] * weights + pred_actions * (1.0 - weights)
+        
+        return next_actions
 
     def warmup(self) -> None:
         """Trigger torch.compile warmup via the wrapper."""

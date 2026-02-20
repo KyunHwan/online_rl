@@ -78,7 +78,7 @@ class ControllerActor:
         inference_ready_flag: Any,  # multiprocessing.Value
         operator_name: str='default'
     ):
-        from env_actor.auto.io_interface.controller_interface import ControllerInterface
+        from env_actor.auto.robot_io_interface.controller_interface import ControllerInterface
         from env_actor.episode_recorder.episode_recorder_interface import EpisodeRecorderInterface
 
         from .data_manager.shm_manager_interface import SharedMemoryInterface

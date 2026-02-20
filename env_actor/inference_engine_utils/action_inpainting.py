@@ -1,10 +1,42 @@
 import math
+import numpy as np
 from typing import Optional
 
 import torch
 from torch.func import vjp
 
+# For when model architecture doesn't allow for action inpainting
+def compute_guided_prefix_weights(
+    delay_steps: int,
+    executed: int,
+    total: int,
+    *,
+    schedule: str = "exp",
+) -> np.ndarray:
+    """Guided-inference prefix weighting for blending neighboring action chunks."""
+    start = max(min(int(delay_steps), total), 0)
+    if start >= total:
+        return np.ones(total, dtype=np.float32)
+    span = max(int(executed), 1)
+    span = min(span, max(total - start, 1))
+    
+    indices = np.arange(total, dtype=np.float32)
+    if schedule == "ones":
+        return np.ones(total, dtype=np.float32)
+    if schedule == "zeros":
+        return (indices < start).astype(np.float32)
+    weights = np.zeros(total, dtype=np.float32)
+    weights[:start] = 1.0
+    denom = total - span - start + 1
+    if denom > 0 and (total - span) > start:
+        c_i = (total - span - indices) / float(denom)
+        inter_vals = c_i * np.expm1(c_i) / (math.e - 1.0)
+        weights[start : total - span] = inter_vals[start : total - span]
+    weights[total - span :] = 0.0
+    return weights
 
+# Assuming Cross-Attention memory input with Transformer action decoder
+# Uses flow-matching
 def guided_action_chunk_inference(
     action_decoder: torch.nn.Module,
     cond_memory: torch.Tensor,

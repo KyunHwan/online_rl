@@ -37,12 +37,11 @@ class SequentialActor:
 
     def __init__(
         self,
-        runtime_params,
+        inference_runtime_params_config,
         inference_runtime_topics_config,
         robot,
         policy_yaml_path,
         policy_state_manager_handle,
-        norm_stats_state_manager_handle,
         episode_queue_handle,
     ):
         """
@@ -54,20 +53,29 @@ class SequentialActor:
             robot: str ("igris_b" or "igris_c")
             policy_yaml_path: str file path to policy yaml file.
         """
-        from env_actor.auto.io_interface.controller_interface import ControllerInterface
+        from env_actor.robot_io_interface.controller_interface import ControllerInterface
         from .data_manager.data_manager_interface import DataManagerInterface
         from env_actor.episode_recorder.episode_recorder_interface import EpisodeRecorderInterface
         
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        # Load robot-specific RuntimeParams
+        if self.robot == "igris_b":
+            from env_actor.runtime_settings_configs.robots.igris_b.inference_runtime_params import RuntimeParams
+        elif self.robot == "igris_c":
+            from env_actor.runtime_settings_configs.robots.igris_c.inference_runtime_params import RuntimeParams
+        else:
+            raise ValueError(f"Unknown robot: {self.robot}")
+        self.runtime_params = RuntimeParams(inference_runtime_params_config)
         self.policy = build_policy(policy_yaml_path=policy_yaml_path, map_location="cpu").to(self.device)
-        self.controller_interface = ControllerInterface(runtime_params=runtime_params, 
+        self.policy.eval()
+        self.controller_interface = ControllerInterface(runtime_params=self.runtime_params, 
                                                         inference_runtime_topics_config=inference_runtime_topics_config,
                                                         robot=robot)
-        self.data_manager_interface = DataManagerInterface(runtime_params=runtime_params, robot=robot)
+        self.data_manager_interface = DataManagerInterface(runtime_params=self.runtime_params, robot=robot)
         self.episode_recorder = EpisodeRecorderInterface(robot=robot)
 
         self.policy_state_manager_handle = policy_state_manager_handle
-        self.norm_stats_state_manager_handle = norm_stats_state_manager_handle
         self.episode_queue_handle = episode_queue_handle
 
     def start(self) -> None:
@@ -97,19 +105,14 @@ class SequentialActor:
 
                 sub_eps = self.episode_recorder.serve_train_data_buffer(episode)
                 for sub_ep in sub_eps:
-                    # labeling
                     sub_ep_data_ref = ray.put(sub_ep)
                     self.episode_queue_handle.put(sub_ep_data_ref, block=True)
-                    # trainer
 
-                
             self.episode_recorder.init_train_data_buffer()
 
             print("Initializing robot position...")
             prev_joint = self.controller_interface.init_robot_position()
             time.sleep(0.5)
-            
-            self.data_manager_interface.update_prev_joint(prev_joint)
 
             print("Bootstrapping observation history...")
             initial_state = self.controller_interface.read_state()
@@ -120,8 +123,6 @@ class SequentialActor:
 
             # 5. Main control loop
             for t in range(9000):
-                # Rate-limit to maintain target HZ
-                # rate_controller.sleep()
 
                 # a. Read latest observations (raw from robot)
                 obs_data = self.controller_interface.read_state()
@@ -135,21 +136,17 @@ class SequentialActor:
                 self.data_manager_interface.update_state_history(obs_data)
 
                 # c. Conditionally run policy
-                if (t % self.controller_interface.policy_update_period) == 0 or t == 0:
-                    # Get normalized observations from data manager
-                    normalized_obs = self.data_manager_interface.serve_normalized_obs_state(self.device)
-
-                    # Generate noise in data manager
-                    noise = self.data_manager_interface.generate_noise(self.device)
-
-                    # Add noise to observation dict for policy
-                    normalized_obs['noise'] = noise
+                if (t % self.controller_interface.policy_update_period) == 0:
+                    # Get observations from data manager
+                    obs = self.data_manager_interface.serve_raw_obs_state()
 
                     # Run policy forward pass (just neural network)
-                    policy_output = self.policy.predict(normalized_obs)
+                    policy_output = self.policy.predict(obs, self.normalization_state_manager)
 
-                    # Buffer and denormalize action in data manager
-                    self.data_manager_interface.buffer_action_chunk(policy_output, t)
+                    denormalized_policy_output = self.normalization_state_manager.denormalize_action(policy_output)
+
+                    # Buffer denormalized action in data manager
+                    self.data_manager_interface.buffer_action_chunk(denormalized_policy_output, t)
 
                 # d. Get current action from data manager (already denormalized)
                 action = self.data_manager_interface.get_current_action(t)
@@ -157,13 +154,18 @@ class SequentialActor:
                 # e. Publish action to robot (includes slew-rate limiting)
                 smoothed_joints, fingers = self.controller_interface.publish_action(
                                                                         action,
-                                                                        self.data_manager_interface.prev_joint
+                                                                        prev_joint
                                                                     )
-                self.episode_recorder.add_action(np.concatenate([np.concatenate([smoothed_joints[6:], smoothed_joints[:6]]),
-                                                                               fingers]))
+                self.episode_recorder.add_action(
+                    np.concatenate(
+                        [np.concatenate(
+                            [smoothed_joints[6:], smoothed_joints[:6]]),
+                             fingers]
+                    )
+                )
 
                 # f. Update previous joint state in data manager
-                self.data_manager_interface.update_prev_joint(smoothed_joints)
+                prev_joint = smoothed_joints
 
                 # g. Maintain precise loop timing
                 next_t += DT

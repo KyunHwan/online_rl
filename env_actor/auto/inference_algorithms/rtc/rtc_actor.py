@@ -14,7 +14,6 @@ class RTCActor:
                  policy_yaml_path,
                  inference_runtime_params_config,
                  inference_runtime_topics_config,
-                 min_num_actions_executed,
 
                  episode_queue_handle,
                  ):
@@ -23,7 +22,6 @@ class RTCActor:
         self.policy_yaml_path = policy_yaml_path
         self.inference_runtime_params_config = inference_runtime_params_config
         self.inference_runtime_topics_config = inference_runtime_topics_config
-        self.min_num_actions_executed = min_num_actions_executed
 
         # Ray
         self.episode_queue_handle = episode_queue_handle
@@ -32,9 +30,9 @@ class RTCActor:
         from ray import cloudpickle
         import multiprocessing as mp
         from multiprocessing import resource_tracker
-        from env_actor.auto.inference_algorithms.rtc.data_manager.utils.utils import create_shared_ndarray
-        from .inference_engine_utils.control_loop import start_control
-        from .inference_engine_utils.inference_loop import start_inference
+        from env_actor.auto.inference_algorithms.rtc.data_manager.utils.shared_memory_utils import create_shared_ndarray
+        from .actors.control_loop import start_control
+        from .actors.inference_loop import start_inference
 
         # Load robot-specific RuntimeParams
         if self.robot == "igris_b":
@@ -98,7 +96,6 @@ class RTCActor:
             args=(
                 self.robot,
                 self.policy_yaml_path,
-                self.min_num_actions_executed,
                 self.inference_runtime_params_config,
                 self.inference_runtime_topics_config,
                 shm_specs,

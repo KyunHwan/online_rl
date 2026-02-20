@@ -5,9 +5,9 @@ class ControllerInterface:
                  robot):
         self.controller_bridge = None
         if robot == "igris_b":
-            from env_actor.auto.io_interface.robots.igris_b.controller_bridge import ControllerBridge
+            from .robots.igris_b.controller_bridge import ControllerBridge
         elif robot == "igris_c":
-            from env_actor.auto.io_interface.robots.igris_c.controller_bridge import ControllerBridge
+            from .robots.igris_c.controller_bridge import ControllerBridge
         self.controller_bridge = ControllerBridge(runtime_params=runtime_params, 
                                                   inference_runtime_topics_config=inference_runtime_topics_config,)
 

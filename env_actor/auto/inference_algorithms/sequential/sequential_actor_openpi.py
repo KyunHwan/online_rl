@@ -40,7 +40,7 @@ class SequentialActorOpenpi:
     ):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        from env_actor.auto.io_interface.controller_interface import ControllerInterface
+        from env_actor.robot_io_interface.controller_interface import ControllerInterface
         from .data_manager.data_manager_interface import DataManagerInterface
         from env_actor.policy.policies.pi05_igris.pi05_igris import Pi05IgrisVlaAdapter
         

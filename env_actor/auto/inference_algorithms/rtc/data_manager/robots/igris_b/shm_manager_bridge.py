@@ -12,7 +12,7 @@ and attached to by Ray actors via the attach_from_specs() factory method.
 from __future__ import annotations
 
 from ctypes import c_bool
-from env_actor.auto.inference_algorithms.rtc.data_manager.utils.utils import ShmArraySpec, attach_shared_ndarray
+from env_actor.auto.inference_algorithms.rtc.data_manager.utils.shared_memory_utils import ShmArraySpec, attach_shared_ndarray
 from multiprocessing import Value, resource_tracker
 from multiprocessing.shared_memory import SharedMemory
 from typing import TYPE_CHECKING
@@ -24,7 +24,7 @@ from env_actor.runtime_settings_configs.robots.igris_b.init_params import (
 import torch
 import numpy as np
 
-from env_actor.auto.inference_algorithms.rtc.inference_engine_utils.max_deque import MaxDeque
+from env_actor.auto.inference_algorithms.rtc.data_manager.utils.max_deque import MaxDeque
 
 from multiprocessing.synchronize import Condition as ConditionType
 from multiprocessing.synchronize import Event as EventType

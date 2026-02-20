@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from env_actor.auto.inference_algorithms.rtc.data_manager.utils.utils import ShmArraySpec
+from env_actor.auto.inference_algorithms.rtc.data_manager.utils.shared_memory_utils import ShmArraySpec
 from typing import TYPE_CHECKING
 from multiprocessing.shared_memory import SharedMemory
 from multiprocessing import Value

@@ -30,9 +30,9 @@ def start_control(
     import json
     import numpy as np
 
-    from ..data_manager.data_normalization_interface import DataNormalizationInterface
+    from env_actor.nom_stats_manager.data_normalization_interface import DataNormalizationInterface
     from env_actor.episode_recorder.episode_recorder_interface import EpisodeRecorderInterface
-    from env_actor.auto.io_interface.controller_interface import ControllerInterface
+    from env_actor.robot_io_interface.controller_interface import ControllerInterface
     from ..data_manager.shm_manager_interface import SharedMemoryInterface
     
     # Load robot-specific RuntimeParams
@@ -76,7 +76,7 @@ def start_control(
 
     episode_recorder = EpisodeRecorderInterface(robot=robot)
 
-    data_normalization_bridge = DataNormalizationInterface(robot=robot, data_stats=runtime_params.read_stats_file())
+    data_normalization_interface = DataNormalizationInterface(robot=robot, data_stats=runtime_params.read_stats_file())
 
     # Episode configuration
     episode_length = 1000  # Control steps per episode
@@ -102,6 +102,7 @@ def start_control(
             if not shm_manager.wait_for_inference_ready():
                 print("Stop event received before inference ready, exiting")
                 return
+            
             # Clear episode_complete after inference signals ready (ensures handshake)
             shm_manager.clear_episode_complete()
 

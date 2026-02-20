@@ -1,40 +1,6 @@
-import numpy as np
-import math
-
-def _compute_guided_prefix_weights(
-    delay_steps: int,
-    executed: int,
-    total: int,
-    *,
-    schedule: str = "exp",
-) -> np.ndarray:
-    """Guided-inference prefix weighting for blending neighboring action chunks."""
-    start = max(min(int(delay_steps), total), 0)
-    if start >= total:
-        return np.ones(total, dtype=np.float32)
-    span = max(int(executed), 1)
-    span = min(span, max(total - start, 1))
-    
-    indices = np.arange(total, dtype=np.float32)
-    if schedule == "ones":
-        return np.ones(total, dtype=np.float32)
-    if schedule == "zeros":
-        return (indices < start).astype(np.float32)
-    weights = np.zeros(total, dtype=np.float32)
-    weights[:start] = 1.0
-    denom = total - span - start + 1
-    if denom > 0 and (total - span) > start:
-        c_i = (total - span - indices) / float(denom)
-        inter_vals = c_i * np.expm1(c_i) / (math.e - 1.0)
-        weights[start : total - span] = inter_vals[start : total - span]
-    weights[total - span :] = 0.0
-    return weights
-
-
 def start_inference(
         robot,
         policy_yaml_path,
-        min_num_actions_executed,
         inference_runtime_params_config,
         inference_runtime_topics_config,
 
@@ -47,6 +13,9 @@ def start_inference(
         num_control_iters,
         inference_ready_flag,
     ) -> None:
+
+    min_num_actions_executed = 35
+
     import ray
     if not ray.is_initialized():
         ray.init(address="auto", namespace="online_rl", log_to_driver=True)
@@ -54,7 +23,7 @@ def start_inference(
     import torch
     import json
 
-    from ..data_manager.data_normalization_interface import DataNormalizationInterface
+    from env_actor.nom_stats_manager.data_normalization_interface import DataNormalizationInterface
     from ..data_manager.shm_manager_interface import SharedMemoryInterface
     from env_actor.policy.utils.weight_transfer import load_state_dict_cpu_into_module
     from env_actor.policy.utils.loader import build_policy
@@ -124,7 +93,7 @@ def start_inference(
 
         policy_state_manager_handle = ray.get_actor("policy_state_manager")
 
-        data_normalization_bridge = DataNormalizationInterface(robot=robot, data_stats=runtime_params.read_stats_file())
+        data_normalization_interface = DataNormalizationInterface(robot=robot, data_stats=runtime_params.read_stats_file())
 
         while True:  # Outer loop - per episode
             # Signal ready for new episode
@@ -161,18 +130,11 @@ def start_inference(
                 input_data = shm_manager.atomic_read_for_inference()
 
                 with torch.inference_mode(), torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-                    # TODO: Normalize observations and prev_action_chunk
-                    # TODO: Denormalize action output
-                    #input_data['normalized_proprio'] = data_normalization_bridge.normalize_state()
-                    pred_actions = policy.predict(input_data)
-
-                weights = _compute_guided_prefix_weights(
-                    input_data['est_delay'],
-                    min_num_actions_executed, # executed steps
-                    runtime_params.action_chunk_size, # total
-                    schedule="exp",
-                ).reshape(-1, 1)
-                next_actions = input_data['prev_action'] * weights + pred_actions * (1.0 - weights)
+                    # Guided inference logic and normalization / denormalization should be done inside the policy
+                    next_actions = policy.guided_inference(input_data, 
+                                                           data_normalization_interface,
+                                                           min_num_actions_executed, 
+                                                           runtime_params.action_chunk_size)
 
                 shm_manager.write_action_chunk_n_update_iter_val(
                     next_actions, input_data['num_control_iters']
