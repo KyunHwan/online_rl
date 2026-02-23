@@ -149,8 +149,6 @@ def start_online_rl(train_config_path,
         ray.shutdown()
 
     
-    
-    
 
 if __name__ == "__main__":
     

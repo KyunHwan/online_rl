@@ -1,4 +1,3 @@
-import torch
 import numpy as np
 
 
@@ -6,32 +5,34 @@ class DataNormalizationBridge:
     def __init__(self, norm_stats):
         self.norm_stats = norm_stats
     
-    def normalize_state(self, state):
+    def normalize_state(self, state: np.ndarray):
         # Load normalization stats
-        state_mean = torch.concat([torch.from_numpy(self.norm_stats['observation.state']['mean']),
-                                   torch.from_numpy(self.norm_stats['observation.current']['mean'])], dim=-1)
-        state_std = torch.concat([torch.from_numpy(self.norm_stats['observation.state']['std']),
-                                  torch.from_numpy(self.norm_stats['observation.current']['std'])], dim=-1)
+        state_mean = np.concatenate([self.norm_stats['observation.state']['mean'],
+                                 self.norm_stats['observation.current']['mean']], axis=-1)
+        state_std = np.concatenate([self.norm_stats['observation.state']['std'],
+                                    self.norm_stats['observation.current']['std']], axis=-1)
 
         eps = 1e-8
 
-        # Normalize proprioceptive state
-        # Expand batch shape
-        state['proprio'] = ((torch.from_numpy(state['proprio']) - state_mean) / (state_std + eps)).unsqueeze(0)
 
+        # Normalize proprioceptive state
+        proprio_len = state['proprio'].shape[-1]
+        state['proprio'] = (state['proprio'] - state_mean[:proprio_len]) / (state_std[:proprio_len] + eps)
+
+        # cams
         for key in state.keys():
-            if isinstance(state[key], np.ndarray):
-                state[key] = torch.from_numpy(state[key])
+            if key != 'proprio':
+                state[key] = state[key] / 255.0
 
         return state
     
     def normalize_action(self, action: np.ndarray) -> np.ndarray:
-        action_mean = torch.from_numpy(self.norm_stats['action']['mean'])
-        action_std = torch.from_numpy(self.norm_stats['action']['std'])
+        action_mean = self.norm_stats['action']['mean']
+        action_std = self.norm_stats['action']['std']
 
         eps = 1e-8
 
-        action['action'] = ((torch.from_numpy(action['action']) - action_mean) / (action_std + eps)).unsqueeze(0)
+        action['action'] = ((action['action'] - action_mean) / (action_std + eps))
         pass
     
     def denormalize_action(self, action: np.ndarray) -> np.ndarray:
@@ -44,12 +45,10 @@ class DataNormalizationBridge:
         Returns:
             Denormalized action as numpy array
         """
-        device = action.device
-        action_mean = torch.from_numpy(self.norm_stats['action']['mean']).to(device)
-        action_std = torch.from_numpy(self.norm_stats['action']['std']).to(device)
+        action_mean = self.norm_stats['action']['mean']
+        action_std = self.norm_stats['action']['std']
 
-        # Denormalize: action = action * std + mean
         denormalized = action * action_std + action_mean
-        return denormalized.cpu().numpy()
+        return denormalized
 
 

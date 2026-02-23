@@ -55,10 +55,11 @@ class SequentialActor:
         """
         from env_actor.robot_io_interface.controller_interface import ControllerInterface
         from .data_manager.data_manager_interface import DataManagerInterface
+        from env_actor.nom_stats_manager.data_normalization_interface import DataNormalizationInterface
         from env_actor.episode_recorder.episode_recorder_interface import EpisodeRecorderInterface
         
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+        self.robot = robot
         # Load robot-specific RuntimeParams
         if self.robot == "igris_b":
             from env_actor.runtime_settings_configs.robots.igris_b.inference_runtime_params import RuntimeParams
@@ -73,6 +74,7 @@ class SequentialActor:
                                                         inference_runtime_topics_config=inference_runtime_topics_config,
                                                         robot=robot)
         self.data_manager_interface = DataManagerInterface(runtime_params=self.runtime_params, robot=robot)
+        self.data_normalization_interface = DataNormalizationInterface(robot=robot, data_stats=self.runtime_params.read_stats_file())
         self.episode_recorder = EpisodeRecorderInterface(robot=robot)
 
         self.policy_state_manager_handle = policy_state_manager_handle
@@ -89,6 +91,14 @@ class SequentialActor:
         DT = self.controller_interface.DT
         
         episode = -1
+
+        # Warm up CUDA (once, outside all loops)
+        print("Warming up CUDA kernels...")
+        with torch.no_grad():
+            try:
+                self.policy.warmup()
+            except Exception as e:
+                print(f"Warmup encountered error (may be expected for minimal inputs): {e}")
 
         while True:
             if episode >= 0:
@@ -141,9 +151,10 @@ class SequentialActor:
                     obs = self.data_manager_interface.serve_raw_obs_state()
 
                     # Run policy forward pass (just neural network)
-                    policy_output = self.policy.predict(obs, self.normalization_state_manager)
+                    # Normalize inside the policy
+                    policy_output = self.policy.predict(obs, self.data_normalization_interface)
 
-                    denormalized_policy_output = self.normalization_state_manager.denormalize_action(policy_output)
+                    denormalized_policy_output = self.data_normalization_interface.denormalize_action(policy_output)
 
                     # Buffer denormalized action in data manager
                     self.data_manager_interface.buffer_action_chunk(denormalized_policy_output, t)

@@ -110,7 +110,7 @@ class OpenPiPolicy:
         # Remove batch dimension
         return batched_actions[0]
 
-    def guided_inference(self, input_data: dict[str, Any], min_num_actions_executed, action_chunk_size) -> np.ndarray:
+    def guided_inference(self, input_data: dict[str, Any], data_normalization_interface, min_num_actions_executed, action_chunk_size) -> np.ndarray:
         """Run inference on single-sample observations.
 
         Accepts the same observation format as Pi05IgrisVlaAdapter.predict():
