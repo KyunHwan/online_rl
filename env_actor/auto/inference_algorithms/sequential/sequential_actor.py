@@ -151,10 +151,9 @@ class SequentialActor:
                     obs = self.data_manager_interface.serve_raw_obs_state()
 
                     # Run policy forward pass (just neural network)
-                    # Normalize inside the policy
-                    policy_output = self.policy.predict(obs, self.data_normalization_interface)
-
-                    denormalized_policy_output = self.data_normalization_interface.denormalize_action(policy_output)
+                    # Normalize input inside the policy
+                    # Denormalize output inside the policy
+                    denormalized_policy_output = self.policy.predict(obs, self.data_normalization_interface)
 
                     # Buffer denormalized action in data manager
                     self.data_manager_interface.buffer_action_chunk(denormalized_policy_output, t)
