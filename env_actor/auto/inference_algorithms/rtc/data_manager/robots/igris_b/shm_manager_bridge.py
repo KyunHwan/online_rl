@@ -313,9 +313,7 @@ class SharedMemoryManager:
         """
         with self._lock:
             if len(action_chunk.shape) == 3:
-                action_chunk = action_chunk.squeeze(0) 
-            if isinstance(action_chunk, torch.Tensor):
-                action_chunk = action_chunk.cpu().numpy()
+                action_chunk = action_chunk.squeeze(0)
             np.copyto(self._shm_array_dict['action'], action_chunk.astype(np.float32, copy=False), casting='no')
             self._num_control_iters.value = self._num_control_iters.value - executed
             self._delay_queue.add(self._num_control_iters.value)
