@@ -179,9 +179,8 @@ class SharedMemoryManager:
 
         Called by InferenceActor after policy loading and CUDA warmup.
         """
-        with self._lock:
-            self._inference_ready_flag.value = True
         with self._inference_ready_cond:
+            self._inference_ready_flag.value = True
             self._inference_ready_cond.notify_all()
     
     def set_inference_not_ready(self) -> None:
@@ -189,9 +188,8 @@ class SharedMemoryManager:
 
         Called by InferenceActor before policy loading and CUDA warmup.
         """
-        with self._lock:
-            self._inference_ready_flag.value = False
         with self._inference_ready_cond:
+            self._inference_ready_flag.value = False
             self._inference_ready_cond.notify_all()
 
     def signal_episode_complete(self) -> None:

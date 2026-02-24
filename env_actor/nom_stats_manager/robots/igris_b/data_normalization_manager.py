@@ -5,7 +5,7 @@ class DataNormalizationBridge:
     def __init__(self, norm_stats):
         self.norm_stats = norm_stats
     
-    def normalize_state(self, state: np.ndarray):
+    def normalize_state(self, state: dict[str, np.ndarray]):
         # Load normalization stats
         state_mean = np.concatenate([self.norm_stats['observation.state']['mean'],
                                  self.norm_stats['observation.current']['mean']], axis=-1)
@@ -32,7 +32,7 @@ class DataNormalizationBridge:
 
         eps = 1e-8
 
-        action['action'] = ((action['action'] - action_mean) / (action_std + eps))
+        action = ((action - action_mean) / (action_std + eps))
         pass
     
     def denormalize_action(self, action: np.ndarray) -> np.ndarray:
