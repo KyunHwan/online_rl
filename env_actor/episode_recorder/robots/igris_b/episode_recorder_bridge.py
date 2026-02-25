@@ -88,18 +88,18 @@ class EpisodeRecorderBridge:
         train_data = torch.stack(train_data, dim=0)
         train_data[("next", "done")][-1] = True
 
-        next_obs = copy.deepcopy(self.episodic_obs_state[1:])
-        next_obs.append(next_obs[-1])
-        next_obs = TensorDict({
-            "next": torch.stack(next_obs, dim=0)
-        })
+        # next_obs = copy.deepcopy(self.episodic_obs_state[1:])
+        # next_obs.append(next_obs[-1])
+        # next_obs = TensorDict({
+        #     "next": torch.stack(next_obs, dim=0)
+        # })
 
         obs = torch.stack(self.episodic_obs_state, dim=0)
         actions = torch.stack(self.episodic_action, dim=0)
 
         train_data.update(obs)
         train_data.update(actions)
-        train_data.update(next_obs)
+        # train_data.update(next_obs)
 
         return self._split_by_control_mode_as_episodes(train_td=train_data, base_episode_id=episode_id)
     
