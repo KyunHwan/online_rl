@@ -158,22 +158,22 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="Parse for train config and inference_config .yaml files")
     parser.add_argument("--robot", 
-                        required=True,
+                        default="igris_b",
                         help="igris_b or igris_c")
     parser.add_argument("--human_reward_labeler", 
                         action="store_true", 
                         help="whether reward labeling is done by a human")
     parser.add_argument("--train_config", 
-                        default="/home/user/Projects/online_rl/trainer/experiment_training/imitation_learning/vfp_single_expert/exp2/vfp_single_expert_depth.yaml",
+                        default="/home/user/Projects/online_rl/trainer/experiment_training/reinforcement_learning/dsrl_openpi/exp1/dsrl_openpi.yaml",
                         help="absolute path to the train config .yaml file.")
     parser.add_argument("--policy_yaml", 
-                        default="./env_actor/policy/policies/openpi_policy/openpi_policy.yaml",
+                        default="./env_actor/policy/policies/dsrl_openpi_policy/dsrl_openpi_policy.yaml",
                         help="path to the policy config .yaml file.")
     parser.add_argument("--inference_runtime_params_config", 
-                        default="/home/robros/Projects/online_rl/env_actor/runtime_settings_configs/robots/igris_b/inference_runtime_params.json",
+                        default="./env_actor/runtime_settings_configs/robots/igris_b/inference_runtime_params.json",
                         help="absolute path to the inference runtime params config file.")
     parser.add_argument("--inference_runtime_topics_config", 
-                        default="/home/robros/Projects/online_rl/env_actor/runtime_settings_configs/robots/igris_b/inference_runtime_topics.json",
+                        default="./env_actor/runtime_settings_configs/robots/igris_b/inference_runtime_topics.json",
                         help="absolute path to the inference runtime topics config file.")
     parser.add_argument("--inference_algorithm", 
                         default="rtc", 
