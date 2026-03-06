@@ -65,7 +65,11 @@ def start_online_rl(train_config_path,
         ray.shutdown()
     ray.init(address="auto",
              namespace="online_rl",
-             runtime_env={"working_dir": "."})
+             log_to_driver=True,
+             runtime_env={
+                 "working_dir": os.path.dirname(os.path.abspath(__file__)),
+                 "excludes": [".venv/", ".git/", "__pycache__/", "*.pyc", "*.pyo"]
+             })
     
     try:
         # Queue is the bridge between the controller and the reward labeler

@@ -15,7 +15,9 @@ class StateManagerActor:
         self.trainer_version = 0
 
     def update_state(self, new_state_ref):
-        self.current_state_ref = new_state_ref
+        # old reference to the weight in the plasma should be dereferenced
+        # this will trigger ray plasma garbage collector
+        self.current_state_ref = new_state_ref 
         self.trainer_version += 1
         print("weight pushed to Plasma...")
 

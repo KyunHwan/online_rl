@@ -27,6 +27,11 @@ class RTCActor:
         self.episode_queue_handle = episode_queue_handle
     
     def start(self):
+        import sys, pathlib
+        _project_root = str(pathlib.Path(__file__).resolve().parents[4])
+        if _project_root not in sys.path:
+            sys.path.insert(0, _project_root)
+
         from ray import cloudpickle
         import multiprocessing as mp
         from multiprocessing import resource_tracker
