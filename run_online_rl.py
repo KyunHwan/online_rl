@@ -30,7 +30,7 @@ robot_obs_history_dtype = np.float32
 cam_images_dtype = np.uint8
 action_chunk_dtype = np.float32
 
-RAYQUEUE_MAXSIZE = 25
+RAYQUEUE_MAXSIZE = 15
 
 @ray.remote
 def run_training(train_config_path: str):
