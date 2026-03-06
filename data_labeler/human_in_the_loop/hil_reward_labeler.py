@@ -116,10 +116,12 @@ class ManualRewardLabelerActor:
                 self.frame_info = QLabel("Frame: - / -")
                 self.reward_info = QLabel("Reward: -")
 
+                self.btn_reward_minus1 = QPushButton("Set Reward = -1")
                 self.btn_reward0 = QPushButton("Set Reward = 0")
                 self.btn_reward1 = QPushButton("Set Reward = 1")
                 self.btn_complete = QPushButton("Complete")
 
+                self.btn_reward_minus1.setEnabled(False)
                 self.btn_reward0.setEnabled(False)
                 self.btn_reward1.setEnabled(False)
                 self.btn_complete.setEnabled(False)
@@ -139,6 +141,7 @@ class ManualRewardLabelerActor:
                 v.addLayout(info_row)
 
                 btn_row = QHBoxLayout()
+                btn_row.addWidget(self.btn_reward_minus1)
                 btn_row.addWidget(self.btn_reward0)
                 btn_row.addWidget(self.btn_reward1)
                 btn_row.addStretch(1)
@@ -147,6 +150,7 @@ class ManualRewardLabelerActor:
 
                 # Signals
                 self.slider.valueChanged.connect(self._on_slider_changed)
+                self.btn_reward_minus1.clicked.connect(lambda: self._set_reward(-1))
                 self.btn_reward0.clicked.connect(lambda: self._set_reward(0))
                 self.btn_reward1.clicked.connect(lambda: self._set_reward(1))
                 self.btn_complete.clicked.connect(self._on_complete)
@@ -173,6 +177,7 @@ class ManualRewardLabelerActor:
 
             def _set_ui_busy(self, busy: bool):
                 self.slider.setEnabled(busy)
+                self.btn_reward_minus1.setEnabled(busy)
                 self.btn_reward0.setEnabled(busy)
                 self.btn_reward1.setEnabled(busy)
                 self.btn_complete.setEnabled(busy)
@@ -195,6 +200,12 @@ class ManualRewardLabelerActor:
 
                     frames = td[self.img_frame_key]   # [T,H,W,3]
                     reward = td[self.reward_key]      # [T]
+
+                    if reward.dtype in (torch.uint8, torch.bool):
+                        raise TypeError(
+                            f"Reward tensor dtype must be signed or float to support -1, got {reward.dtype}"
+                        )
+
                     T = int(frames.shape[0])
 
                     # Only commit state AFTER we know td is valid.

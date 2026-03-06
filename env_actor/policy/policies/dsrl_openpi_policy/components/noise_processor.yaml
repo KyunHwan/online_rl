@@ -1,0 +1,35 @@
+schema_version: 1
+
+# Processes {head, left, right image features, proprio}
+# into a single flattened vector for the noise latent actor.
+# input_img_channel must match RadioV3 spatial feature channel count (1024).
+
+params:
+  proprio_key: 'proprio'
+  depth_data_keys: []
+  img_data_keys: ['head', 'left', 'right']
+  input_img_channel: 1024
+  input_depth_channel: 1024
+  output_img_channel: 24
+  output_depth_channel: 24
+
+model:
+  graph:
+    inputs: [data]
+    modules:
+      noise_proc:
+        _type_: dsrl_noise_actor_processor
+        proprio_key: ${params.proprio_key}
+        depth_data_keys: ${params.depth_data_keys}
+        img_data_keys: ${params.img_data_keys}
+        input_img_channel: ${params.input_img_channel}
+        input_depth_channel: ${params.input_depth_channel}
+        output_img_channel: ${params.output_img_channel}
+        output_depth_channel: ${params.output_depth_channel}
+    nodes:
+      - name: flat_features
+        call: module:noise_proc
+        kwargs:
+          data: $data
+    outputs: [$flat_features]
+    return: single

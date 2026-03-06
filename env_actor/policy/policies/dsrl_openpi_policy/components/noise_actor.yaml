@@ -1,0 +1,32 @@
+schema_version: 1
+
+# input_dim must match the total flattened output of noise_processor at the
+# image resolution used during training. Set to the value from training config.
+
+params:
+  input_dim: 49584
+  action_chunk_size: 50
+  action_dim: 32
+  num_layers: 5
+  num_hidden_dim: 2048
+  dropout: 0.0
+
+model:
+  graph:
+    inputs: [flat_features]
+    modules:
+      actor:
+        _type_: dsrl_noise_latent_actor
+        input_dim: ${params.input_dim}
+        action_chunk_size: ${params.action_chunk_size}
+        action_dim: ${params.action_dim}
+        num_layers: ${params.num_layers}
+        num_hidden_dim: ${params.num_hidden_dim}
+        dropout: ${params.dropout}
+    nodes:
+      - name: noise
+        call: module:actor
+        kwargs:
+          flattened_tensor: $flat_features
+    outputs: [$noise]
+    return: single

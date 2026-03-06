@@ -1,0 +1,22 @@
+schema_version: 1
+
+params:
+  resize_method: 'forced'
+  channels: [1024, 3072]
+
+model:
+  graph:
+    inputs: [image]
+    modules:
+      radiov3:
+        _type_: radiov3
+        channels: ${params.channels}
+        resize_method: ${params.resize_method}
+    nodes:
+      - name: radiov3_out
+        call: module:radiov3
+        kwargs:
+          image: $image
+        out: [image_features, image_semantic]
+    outputs: [$image_features, $image_semantic]
+    return: tuple

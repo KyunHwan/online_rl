@@ -14,7 +14,7 @@
   "proprio_state_dim": 24,
   "action_dim": 24,
   "action_chunk_size": 50,
-  "proprio_history_size": 1,
+  "proprio_history_size": 50,
   "num_img_obs": 1,
   "img_obs_every": 1,
   "norm_stats_file_path": ""

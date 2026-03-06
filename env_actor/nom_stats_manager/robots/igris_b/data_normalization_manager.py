@@ -33,7 +33,7 @@ class DataNormalizationBridge:
         eps = 1e-8
 
         action = ((action - action_mean) / (action_std + eps))
-        pass
+        return action
     
     def denormalize_action(self, action: np.ndarray) -> np.ndarray:
         """

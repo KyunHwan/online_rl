@@ -112,6 +112,13 @@ class EpisodeRecorderBridge:
             right
         where head, left, right represent images.
         """
+        _IMAGE_KEYS = {"head", "left", "right"}
+        for k in _IMAGE_KEYS:
+            if k in obs_data:
+                arr = obs_data[k]
+                if arr.ndim == 3 and arr.shape[2] == 3:  # HWC -> CHW
+                    obs_data[k] = np.ascontiguousarray(arr.transpose(2, 0, 1))
+
         obs_data_tensordict = TensorDict({
                 data_name: torch.from_numpy(obs_data[data_name]) for data_name in obs_data.keys()
             }, batch_size=[])

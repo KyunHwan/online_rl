@@ -1,0 +1,15 @@
+model:
+  component_config_paths:
+    backbone:        components/backbone.yaml
+    noise_processor: components/noise_processor.yaml
+    noise_actor:     components/noise_actor.yaml
+    openpi_model:    components/openpi_model.yaml
+
+policy:
+  type: dsrl_openpi_policy
+  params:
+    # Directory containing backbone.pt, noise_processor.pt, noise_actor.pt
+    # saved from DSRL training. openpi_model loads its own weights via
+    # ckpt_dir inside components/openpi_model.yaml.
+    checkpoint_path: /home/robros/Projects/inference_engine/trainer/experiment_training/reinforcement_learning/dsrl_openpi/exp1/epoch_35
+    obs_proprio_history: 50
