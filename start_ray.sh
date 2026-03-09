@@ -15,17 +15,17 @@ if [ -z "$TS_IP" ]; then
 fi
 
 case "$HOSTNAME" in
-  robros-ai1)
+  robros-MS-7E59)
     ulimit -n 65535
 
     ray start --head --port=6379 \
       --node-ip-address=$TS_IP \
-      --resources='{"training_pc": 3}'
+      --resources='{"labeling_pc": 1}'
     ;;
-  robros-MS-7E59)
+  robros-ai1)
     ray start --address=${HEAD_IP}:6379 \
       --node-ip-address=$TS_IP \
-      --resources='{"labeling_pc": 1}'
+      --resources='{"training_pc": 3}'
     ;;
   robros-5090)
     ray start --address=${HEAD_IP}:6379 \
