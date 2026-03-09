@@ -8,6 +8,7 @@ class EpisodeRecorderBridge:
     def __init__(self):
         self.episodic_obs_state = []
         self.episodic_action = []
+        self.prompt=None
 
     def _split_by_control_mode(
         self,
@@ -83,6 +84,7 @@ class EpisodeRecorderBridge:
         train_data = [TensorDict({
             "episode": torch.tensor(episode_id, dtype=torch.int64),
             "reward": torch.zeros(1).squeeze(),
+            "task_index": torch.ones(1) * 2,
             ("next", "done"): torch.zeros(1, dtype=torch.bool)
         }) for i in range(len(self.episodic_obs_state))]
         train_data = torch.stack(train_data, dim=0)
@@ -132,6 +134,8 @@ class EpisodeRecorderBridge:
         }, batch_size=[])
         self.episodic_action.append(td)
     
-    def init_train_data_buffer(self):
+    def init_train_data_buffer(self, prompt):
         self.episodic_obs_state = []
         self.episodic_action = []
+        self.prompt=prompt
+
