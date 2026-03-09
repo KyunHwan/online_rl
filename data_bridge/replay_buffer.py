@@ -157,6 +157,8 @@ class ReplayBufferActor:
             out["episode"] = window["episode"][:, self.anchor].clone()
         if "control_mode" in window.keys():
             out["control_mode"] = window["control_mode"][:, self.anchor].clone()
+        if "task_index" in window.keys():
+            out["task_index"] = window["task_index"][:, self.anchor].clone()
 
         # Action / reward horizon
         out["action"] = self._gather_time(window, self.action_key, self.action_offsets).clone()
