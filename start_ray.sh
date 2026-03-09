@@ -16,13 +16,13 @@ fi
 
 case "$HOSTNAME" in
   robros-MS-7E59)
-    ulimit -n 65535
-
     ray start --head --port=6379 \
       --node-ip-address=$TS_IP \
       --resources='{"labeling_pc": 1}'
     ;;
   robros-ai1)
+    ulimit -n 65535
+
     ray start --address=${HEAD_IP}:6379 \
       --node-ip-address=$TS_IP \
       --resources='{"training_pc": 3}'

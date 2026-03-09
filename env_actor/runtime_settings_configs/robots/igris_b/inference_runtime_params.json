@@ -17,5 +17,5 @@
   "proprio_history_size": 50,
   "num_img_obs": 1,
   "img_obs_every": 1,
-  "norm_stats_file_path": ""
+  "norm_stats_file_path": "/home/robros/Projects/inference_engine/trainer/experiment_training/reinforcement_learning/dsrl_openpi/exp1/dataset_stats.pkl"
 }
