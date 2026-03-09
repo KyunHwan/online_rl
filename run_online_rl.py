@@ -81,7 +81,7 @@ def start_online_rl(train_config_path,
         # norm_stats_state_manager = StateManagerActor.options(resources={"training_pc": 1},
         #                                                    name="norm_stats_state_manager").remote()
         replay_buffer = ReplayBufferActor.options(resources={"training_pc": 1},
-                                                name="replay_buffer").remote(slice_len=80)
+                                                name="replay_buffer").remote()
 
         # Environment Actor
         # Load RuntimeParams to get dimensions for SharedMemory
