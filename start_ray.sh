@@ -2,7 +2,7 @@
 # start_ray.sh — run on each machine
 
 # Head node's Tailscale IP
-HEAD_IP="100.109.184.39"
+HEAD_IP="100.118.28.46"
 HOSTNAME=$(hostname)
 
 # Dynamically grab this machine's Tailscale IPv4 address
