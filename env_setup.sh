@@ -32,7 +32,7 @@ uv pip install --no-deps lerobot
 uv pip install datasets
 uv pip install accelerate
 sudo apt-get update && sudo apt-get install -y ffmpeg libavcodec-dev libavdevice-dev libavfilter-dev libavformat-dev libavutil-dev libswscale-dev libswresample-dev
-uv pip install torchcodec
+uv pip install torchcodec==0.9.1
 uv pip install av
 uv pip install tyro
 uv pip install ml_collections
