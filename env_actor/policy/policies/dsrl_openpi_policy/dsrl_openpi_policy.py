@@ -1,7 +1,7 @@
 """DSRL + OpenPI policy for env_actor inference.
 
 Wires four trained components into the Policy protocol:
-  1. backbone (RadioV3)                       — raw images → spatial features
+  1. backbone (Resnet34Group)                   — raw images → spatial features
   2. noise_processor (NoiseActorImgDepthProprioProcessor) — features + proprio → flat latent
   3. noise_actor (Noise_Latent_Actor)         — flat latent → structured noise
   4. openpi_model (OpenPiBatchedWrapper)      — images + proprio + noise → action chunk
@@ -93,14 +93,10 @@ class DsrlOpenpiPolicy:
                 )  # (1, 3, H, W)
 
         # 3. Backbone: raw images → spatial feature maps.
-        #    backbone GraphModel input name: "image"
-        #    backbone returns (features, summary); we need features → (1, 1024, H', W')
-        feat: dict[str, torch.Tensor] = {}
+        #    backbone GraphModel input name: "images"
+        #    Resnet34Group returns dict of {cam: (1, 512, H', W')}
         with torch.no_grad():
-            for cam in _CAMERAS:
-                if cam in img_tensors:
-                    features, _ = self.components["backbone"](image=img_tensors[cam])
-                    feat[cam] = features  # (1, 1024, H', W')
+            feat = self.components["backbone"](images=img_tensors)
 
         # 4. Noise processor: features + normalized proprio → flat latent.
         #    noise_processor GraphModel input name: "data"
@@ -121,17 +117,15 @@ class DsrlOpenpiPolicy:
         }
         for cam in _CAMERAS:
             if cam in obs:
-                openpi_obs[cam] = obs[cam][-1:].astype(np.float32)  # (1, 3, H, W)
+                openpi_obs[cam] = obs[cam][-1:]  # (1, 3, H, W) keep original dtype
         if "prompt" in obs:
             openpi_obs["prompt"] = obs["prompt"]
 
         noise_np = noise.detach().cpu().float().numpy()  # (1, 50, 32)
-        # Generates Gaussian noise
-        noise_np = np.random.randn(1, 50, 32)
-        
+
         # openpi_model GraphModel inputs: [observation, noise]
         actions = self.components["openpi_model"](
-            observation=openpi_obs, noise=noise_np
+            observation=openpi_obs, noise=noise_np#np.random.randn(*noise_np.shape).astype(np.float32)
         )  # (1, action_horizon, action_dim) tensor
 
         return actions[0].cpu().float().numpy()  # (action_horizon, action_dim)

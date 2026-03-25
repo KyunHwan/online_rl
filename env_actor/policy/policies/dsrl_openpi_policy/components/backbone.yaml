@@ -1,22 +1,19 @@
 schema_version: 1
 
 params:
-  resize_method: 'forced'
-  channels: [1024, 3072]
+  resize: true
 
 model:
   graph:
-    inputs: [image]
+    inputs: [images]
     modules:
-      radiov3:
-        _type_: radiov3
-        channels: ${params.channels}
-        resize_method: ${params.resize_method}
+      img_enc:
+        _type_: dsrl_img_encoder
+        resize: ${params.resize}
     nodes:
-      - name: radiov3_out
-        call: module:radiov3
+      - name: features
+        call: module:img_enc
         kwargs:
-          image: $image
-        out: [image_features, image_semantic]
-    outputs: [$image_features, $image_semantic]
-    return: tuple
+          images: $images
+    outputs: [$features]
+    return: single

@@ -11,5 +11,5 @@ policy:
     # Directory containing backbone.pt, noise_processor.pt, noise_actor.pt
     # saved from DSRL training. openpi_model loads its own weights via
     # ckpt_dir inside components/openpi_model.yaml.
-    checkpoint_path: /home/robros/Projects/online_rl/trainer/experiment_training/reinforcement_learning/dsrl_openpi/exp1/epoch_15
+    checkpoint_path: /home/robros/Projects/online_rl/trainer/experiment_training/reinforcement_learning/dsrl_openpi/exp1/epoch_10
     obs_proprio_history: 50
