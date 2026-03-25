@@ -52,20 +52,21 @@ def run_training(train_config_path: str):
 
 
 
-def start_online_rl(train_config_path, 
-                    policy_yaml_path, 
-                    robot, 
-                    human_reward_labeler, 
-                    inference_runtime_params_config, 
-                    inference_runtime_topics_config, 
+def start_online_rl(train_config_path,
+                    policy_yaml_path,
+                    robot,
+                    human_reward_labeler,
+                    inference_runtime_params_config,
+                    inference_runtime_topics_config,
                     inference_algorithm,
+                    num_labeler_gpus=4,
                     ):
     # Initialize Ray
     if ray.is_initialized():
         ray.shutdown()
     ray.init(address="auto",
              namespace="online_rl",
-             runtime_env={"working_dir": "."})
+             runtime_env={"working_dir": ".", "excludes": [".venv/", ".git/", ".git", "__pycache__/", "*.pyc", "*.pyo"]})
     
     try:
         # Queue is the bridge between the controller and the reward labeler
@@ -134,20 +135,29 @@ def start_online_rl(train_config_path,
                         options(resources={"training_pc": 1}).\
                         remote(train_config_path)
 
-        # Start reward labeler
-        if not human_reward_labeler:
-            from data_labeler.auto.auto_reward_labeler import AutoRewardLabelerActor as RewardLabeler
-        else:
+        # Start reward labeler(s)
+        if human_reward_labeler:
             from data_labeler.human_in_the_loop.hil_reward_labeler import ManualRewardLabelerActor as RewardLabeler
-
-        print("running labeler...")
-        reward_labeler = RewardLabeler.\
-                            options(resources={"labeling_pc": 1}).\
+            print("running human labeler...")
+            reward_labeler = RewardLabeler.\
+                                options(resources={"labeling_pc": 1}).\
+                                remote(episode_queue_handle=episode_queue,
+                                    replay_buffer_actor=replay_buffer,
+                                    img_frame_key='head',
+                                    reward_key='reward')
+            reward_labeler.start.remote()
+        else:
+            from data_labeler.auto.auto_reward_labeler import AutoRewardLabelerActor as RewardLabeler
+            print(f"running {num_labeler_gpus} auto labelers...")
+            for i in range(num_labeler_gpus):
+                labeler = RewardLabeler.\
+                            options(resources={"labeling_pc": 1},
+                                    name=f"reward_labeler_{i}").\
                             remote(episode_queue_handle=episode_queue,
                                 replay_buffer_actor=replay_buffer,
                                 img_frame_key='head',
                                 reward_key='reward')
-        _ = reward_labeler.start.remote()
+                labeler.start.remote()
 
         _ = ray.get(train_ref)
 
@@ -184,10 +194,14 @@ if __name__ == "__main__":
     parser.add_argument("--inference_runtime_topics_config", 
                         default="/home/robros/Projects/online_rl/env_actor/runtime_settings_configs/robots/igris_b/inference_runtime_topics.json",
                         help="absolute path to the inference runtime topics config file.")
-    parser.add_argument("--inference_algorithm", 
-                        default="rtc", 
+    parser.add_argument("--inference_algorithm",
+                        default="rtc",
                         choices=["sequential", "rtc"],
                         help="inference algorithm: 'sequential' or 'rtc' (real-time action chunking)")
+    parser.add_argument("--num_labeler_gpus",
+                        type=int,
+                        default=4,
+                        help="number of auto reward labeler GPU workers (default: 4)")
     # parser.add_argument(
     #     "--ckpt_dir", "-C", type=str,
     #     default="/home/robros/Projects/robros_vla_inference_engine/openpi_film/checkpoints/pi05_igris/pi05_igris_b_pnp_v3.3.2/film_15000",
@@ -210,6 +224,7 @@ if __name__ == "__main__":
         args.inference_runtime_params_config,
         args.inference_runtime_topics_config,
         args.inference_algorithm,
+        args.num_labeler_gpus,
         # args.ckpt_dir,
         # args.default_prompt
     )

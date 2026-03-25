@@ -126,7 +126,9 @@ class DsrlOpenpiPolicy:
             openpi_obs["prompt"] = obs["prompt"]
 
         noise_np = noise.detach().cpu().float().numpy()  # (1, 50, 32)
-
+        # Generates Gaussian noise
+        noise_np = np.random.randn(1, 50, 32)
+        
         # openpi_model GraphModel inputs: [observation, noise]
         actions = self.components["openpi_model"](
             observation=openpi_obs, noise=noise_np

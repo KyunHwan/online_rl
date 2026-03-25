@@ -1,3 +1,6 @@
 [submodule "trainer"]
 	path = trainer
 	url = git@github.com:KyunHwan/trainer.git
+[submodule "data_labeler/auto/models/robometer"]
+	path = data_labeler/auto/models/robometer
+	url = git@github.com:KyunHwan/robometer.git

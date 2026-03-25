@@ -99,6 +99,7 @@ def start_inference(
             # Signal ready for new episode
             current_weights = ray.get(policy_state_manager_handle.get_state.remote())
             if current_weights is not None:
+                print("Updating policy weights...")
                 for model_name in current_weights.keys():
                     if model_name in policy.components.keys():
                         missing, unexpected = load_state_dict_cpu_into_module(policy.components[model_name], 

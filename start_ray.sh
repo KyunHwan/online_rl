@@ -18,7 +18,7 @@ case "$HOSTNAME" in
   robros-MS-7E59)
     ray start --head --port=6379 \
       --node-ip-address=$TS_IP \
-      --resources='{"labeling_pc": 1}'
+      --resources='{"labeling_pc": 4}'
     ;;
   robros-ai1)
     ulimit -n 65535

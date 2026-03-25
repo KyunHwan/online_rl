@@ -40,6 +40,8 @@ uv pip install gcsfs
 
 # labeler
 uv pip install PySide6
+echo "Setting up Robometer as submodule"
+uv pip install -e ./data_labeler/auto/models/robometer
 
 
 

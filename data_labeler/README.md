@@ -2,7 +2,7 @@
 
 Reward annotation for collected episodes. Two labeling modes are available, selected via the `--human_reward_labeler` flag in [`run_online_rl.py`](../run_online_rl.py):
 
-1. **Automatic** (default) — a Vision-Language Model labels rewards.
+1. **Automatic** (default) — [Robometer](https://github.com/KyunHwan/robometer) labels rewards.
 2. **Manual** — a PySide6 GUI lets a human assign per-frame binary rewards.
 
 Both actors share the same interface: pull episodes from the Ray Queue → annotate rewards → push labeled data to the replay buffer.
@@ -11,7 +11,16 @@ Both actors share the same interface: pull episodes from the Ray Queue → annot
 
 **File:** [`auto/auto_reward_labeler.py`](auto/auto_reward_labeler.py)
 
-`AutoRewardLabelerActor` is a Ray actor (`num_gpus=1`) that uses [Cosmos-Reason2-8B](https://huggingface.co/nvidia/Cosmos-Reason2-8B) (a VLM based on Qwen3VL) to automatically generate reward labels from episode image frames.
+`AutoRewardLabelerActor` is a Ray actor (`num_gpus=1`) that uses [Robometer-4B](https://huggingface.co/robometer/Robometer-4B) to automatically generate per-frame progress scores as reward labels from episode image frames.
+
+### Setup
+
+Robometer is included as a git submodule at `auto/models/robometer/`. After cloning, initialize it:
+
+```bash
+git submodule update --init --recursive data_labeler/auto/models/robometer
+uv pip install -e ./data_labeler/auto/models/robometer
+```
 
 ### How It Works
 
@@ -22,9 +31,9 @@ Both actors share the same interface: pull episodes from the Ray Queue → annot
 
 ### Configuration
 
-- Model: `nvidia/Cosmos-Reason2-8B` with `flash_attention_2`
-- Precision: `bfloat16`
-- Image resolution: 224x224 (via processor settings)
+- Model: `robometer/Robometer-4B` (from HuggingFace)
+- Task descriptions: configurable via `task_descriptions` dict
+- Supports discrete and continuous progress modes
 
 ## Manual Reward Labeler
 
@@ -76,12 +85,13 @@ ReplayBufferActor (disk write)
 
 | File | Purpose |
 |------|---------|
-| [`auto/auto_reward_labeler.py`](auto/auto_reward_labeler.py) | VLM-based automatic reward labeling |
+| [`auto/auto_reward_labeler.py`](auto/auto_reward_labeler.py) | Robometer-based automatic reward labeling |
 | [`human_in_the_loop/hil_reward_labeler.py`](human_in_the_loop/hil_reward_labeler.py) | PySide6 GUI for manual reward labeling |
 
 ## Subdirectories
 
 | Directory | Purpose |
 |-----------|---------|
-| `auto/` | Automatic reward labeling via VLM |
+| `auto/` | Automatic reward labeling via Robometer |
+| `auto/models/robometer/` | Robometer git submodule |
 | `human_in_the_loop/` | Manual reward labeling via Qt GUI |
