@@ -54,6 +54,8 @@ def run_training(train_config_path: str):
 
 def start_online_rl(train_config_path,
                     policy_yaml_path,
+                    residual_policy_yaml_path,
+                    use_residual_rl,
                     robot,
                     human_reward_labeler,
                     inference_runtime_params_config,
@@ -78,11 +80,11 @@ def start_online_rl(train_config_path,
         episode_queue = RayQueue(maxsize=RAYQUEUE_MAXSIZE) # This sets the maxsize of the Queue to be 10 elements
 
         policy_state_manager = StateManagerActor.options(resources={"training_pc": 1},
-                                                            name="policy_state_manager").remote()
+                                                         name="policy_state_manager").remote()
         # norm_stats_state_manager = StateManagerActor.options(resources={"training_pc": 1},
         #                                                    name="norm_stats_state_manager").remote()
         replay_buffer = ReplayBufferActor.options(resources={"training_pc": 1},
-                                                name="replay_buffer").remote()
+                                                  name="replay_buffer").remote()
 
         # Environment Actor
         # Load RuntimeParams to get dimensions for SharedMemory
@@ -104,8 +106,9 @@ def start_online_rl(train_config_path,
                     policy_yaml_path=policy_yaml_path,
                     inference_runtime_params_config=inference_runtime_params_config,
                     inference_runtime_topics_config=inference_runtime_topics_config,
-
                     episode_queue_handle=episode_queue,
+                    residual_policy_yaml_path=residual_policy_yaml_path,
+                    use_residual_rl=use_residual_rl,
                 )
         else:
             # Sequential inference
@@ -181,6 +184,12 @@ if __name__ == "__main__":
     parser.add_argument("--policy_yaml", 
                         default="./env_actor/policy/policies/dsrl_openpi_policy/dsrl_openpi_policy.yaml",
                         help="path to the policy config .yaml file.")
+    parser.add_argument("--residual_policy_yaml", 
+                        default="./env_actor/policy/policies/dsrl_openpi_policy/dsrl_openpi_policy.yaml",
+                        help="path to the residual policy config .yaml file.")
+    parser.add_argument("--use_residual_rl", 
+                        action="store_true", 
+                        help="whether online")
     parser.add_argument("--inference_runtime_params_config", 
                         default="./env_actor/runtime_settings_configs/robots/igris_b/inference_runtime_params.json",
                         help="absolute path to the inference runtime params config file.")
@@ -203,6 +212,8 @@ if __name__ == "__main__":
     start_online_rl(
         args.train_config,
         args.policy_yaml,
+        args.residual_policy_yaml,
+        args.use_residual_rl,
         args.robot,
         args.human_reward_labeler,
         args.inference_runtime_params_config,

@@ -12,6 +12,7 @@ def start_inference(
         episode_complete_event,
         num_control_iters,
         inference_ready_flag,
+        use_residual_rl
     ) -> None:
 
     min_num_actions_executed = 35
@@ -91,23 +92,23 @@ def start_inference(
             inference_ready_flag=inference_ready_flag,
         )
 
-        policy_state_manager_handle = ray.get_actor("policy_state_manager")
-
+        policy_state_manager_handle = None if use_residual_rl else ray.get_actor("policy_state_manager")
         data_normalization_interface = DataNormalizationInterface(robot=robot, data_stats=runtime_params.read_stats_file())
 
         while True:  # Outer loop - per episode
-            # Signal ready for new episode
-            current_weights = ray.get(policy_state_manager_handle.get_state.remote())
-            if current_weights is not None:
-                print("Updating policy weights...")
-                for model_name in current_weights.keys():
-                    if model_name in policy.components.keys():
-                        missing, unexpected = load_state_dict_cpu_into_module(policy.components[model_name], 
-                                                                            current_weights[model_name], 
-                                                                            strict=True)
-                        print(f"{model_name} weights updated")
-                print("Policy weights updated successfully")
+            if not use_residual_rl:
+                current_weights = ray.get(policy_state_manager_handle.get_state.remote())
+                if current_weights is not None:
+                    print("Updating policy weights...")
+                    for model_name in current_weights.keys():
+                        if model_name in policy.components.keys():
+                            missing, unexpected = load_state_dict_cpu_into_module(policy.components[model_name], 
+                                                                                current_weights[model_name], 
+                                                                                strict=True)
+                            print(f"{model_name} weights updated")
+                    print("Policy weights updated successfully")
 
+            # Signal ready for new episode
             print("Signaling inference ready...")
             shm_manager.set_inference_ready()
 

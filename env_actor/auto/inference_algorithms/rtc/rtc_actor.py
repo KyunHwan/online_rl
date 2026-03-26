@@ -14,14 +14,20 @@ class RTCActor:
                  policy_yaml_path,
                  inference_runtime_params_config,
                  inference_runtime_topics_config,
-
                  episode_queue_handle,
+                 residual_policy_yaml_path,
+                 use_residual_rl,
+                 
                  ):
         # Standard
         self.robot = robot
         self.policy_yaml_path = policy_yaml_path
         self.inference_runtime_params_config = inference_runtime_params_config
         self.inference_runtime_topics_config = inference_runtime_topics_config
+
+        # Flag for residual rl
+        self.use_residual_rl = use_residual_rl
+        self.residual_policy_yaml_path = residual_policy_yaml_path
 
         # Ray
         self.episode_queue_handle = episode_queue_handle
@@ -111,6 +117,7 @@ class RTCActor:
                 episode_complete_event,
                 num_control_iters,
                 inference_ready_flag,
+                self.use_residual_rl
             ),
             daemon=False
         )
@@ -128,8 +135,10 @@ class RTCActor:
                 episode_complete_event,
                 num_control_iters,
                 inference_ready_flag,
-
                 episode_queue_handle_b,
+
+                self.use_residual_rl,
+                self.residual_policy_yaml_path
             ),
             daemon=False
         )

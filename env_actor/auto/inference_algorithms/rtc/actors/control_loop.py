@@ -11,8 +11,9 @@ def start_control(
         episode_complete_event,
         num_control_iters,
         inference_ready_flag,
-
         episode_queue_handle_b,
+        use_residual_rl,
+        residual_policy_yaml_path,
     ):
     """Synchronous implementation of the main control loop.
 
@@ -24,15 +25,22 @@ def start_control(
     if not ray.is_initialized():
         ray.init(address="auto", namespace="online_rl", log_to_driver=True)
     
+    policy_state_manager_handle = ray.get_actor("policy_state_manager") if use_residual_rl else None
     episode_queue_handle = cloudpickle.loads(episode_queue_handle_b)
 
+    import torch
     import time
     import json
     import numpy as np
+    
 
     from env_actor.nom_stats_manager.data_normalization_interface import DataNormalizationInterface
     from env_actor.episode_recorder.episode_recorder_interface import EpisodeRecorderInterface
     from env_actor.robot_io_interface.controller_interface import ControllerInterface
+
+    from env_actor.policy.utils.weight_transfer import load_state_dict_cpu_into_module
+    from env_actor.policy.utils.loader import build_policy
+
     from ..data_manager.shm_manager_interface import SharedMemoryInterface
     
     # Load robot-specific RuntimeParams
@@ -81,6 +89,20 @@ def start_control(
     # Episode configuration
     episode_length = 1000  # Control steps per episode
 
+    # Build policy using env_actor loader
+    # Set up device and CUDA optimizations
+    residual_policy = None
+    if use_residual_rl:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        torch.backends.cudnn.benchmark = True
+        torch.set_float32_matmul_precision("high")
+        
+        residual_policy = build_policy(
+            policy_yaml_path=residual_policy_yaml_path,
+            map_location="cpu",
+        ).to(device)
+        residual_policy.eval()
+
     try:
         print("Starting state readers...")
         controller_interface.start_state_readers()
@@ -89,6 +111,18 @@ def start_control(
         episode = -1
 
         while True:
+            if use_residual_rl:
+                current_weights = ray.get(policy_state_manager_handle.get_state.remote())
+                if current_weights is not None:
+                    print("Updating policy weights...")
+                    for model_name in current_weights.keys():
+                        if model_name in residual_policy.components.keys():
+                            missing, unexpected = load_state_dict_cpu_into_module(residual_policy.components[model_name], 
+                                                                                current_weights[model_name], 
+                                                                                strict=True)
+                            print(f"{model_name} weights updated")
+                    print("Policy weights updated successfully")
+
             # Check stop event
             if episode >= 0:
                 print(f"Episode {episode} finished!")
@@ -124,10 +158,10 @@ def start_control(
             prev_joint = controller_interface.init_robot_position()
             time.sleep(0.5)
 
-            # Reset SharedMemoryManager for new episode (direct call, no Ray)
+            # Reset SharedMemoryManager for new episode (direct call, no Ray) 
             shm_manager.reset()
-            shm_manager.init_action_chunk()
             shm_manager.bootstrap_obs_history(obs_history=controller_interface.read_state())
+            shm_manager.init_action_chunk()
 
             # Main control loop for episode
             next_t = time.perf_counter()
@@ -148,8 +182,12 @@ def start_control(
 
                 # e. Update SharedMemory (atomic write + increment, direct call)
                 action = shm_manager.atomic_write_obs_and_increment_get_action(obs=obs_data, 
-                                                                                    action_chunk_size=runtime_params.action_chunk_size)
+                                                                               action_chunk_size=runtime_params.action_chunk_size)
 
+                if use_residual_rl: 
+                    with torch.inference_mode(), torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                        action = residual_policy.inference(action, obs_data)
+                
                 # h. Publish action to robot (includes slew-rate limiting)
                 smoothed_joints, fingers = controller_interface.publish_action(action, prev_joint)
 
