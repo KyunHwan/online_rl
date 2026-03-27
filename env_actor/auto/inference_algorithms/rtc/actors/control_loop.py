@@ -153,16 +153,20 @@ def start_control(
             episode += 1
             print(f"Starting episode {episode}...")
 
-            # Reset robot position
+            # Reset inference loop conditions and variables
             print("Initializing robot position...")
+            shm_manager.reset()
+            time.sleep(1.5)
+
+            # Reset robot position
             prev_joint = controller_interface.init_robot_position()
             time.sleep(0.5)
 
             # Reset SharedMemoryManager for new episode (direct call, no Ray) 
-            shm_manager.reset()
-            shm_manager.bootstrap_obs_history(obs_history=controller_interface.read_state())
-            shm_manager.init_action_chunk()
-
+            shm_manager.init_action_chunk_obs_history(obs_history=controller_interface.read_state())
+            # shm_manager.bootstrap_obs_history(obs_history=controller_interface.read_state())
+            # shm_manager.init_action_chunk()
+            
             # Main control loop for episode
             next_t = time.perf_counter()
             print("Control loop started...")
@@ -183,10 +187,11 @@ def start_control(
                 # e. Update SharedMemory (atomic write + increment, direct call)
                 action = shm_manager.atomic_write_obs_and_increment_get_action(obs=obs_data, 
                                                                                action_chunk_size=runtime_params.action_chunk_size)
-
+                base_policy_action = None
                 if use_residual_rl: 
+                    base_policy_action = action.copy()
                     with torch.inference_mode(), torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-                        action = residual_policy.inference(action, obs_data)
+                        action = residual_policy.inference(base_policy_action, obs_data) + base_policy_action
                 
                 # h. Publish action to robot (includes slew-rate limiting)
                 smoothed_joints, fingers = controller_interface.publish_action(action, prev_joint)
@@ -195,7 +200,8 @@ def start_control(
                     np.concatenate([smoothed_joints[6:], smoothed_joints[:6]]),
                     fingers,
                 ])
-                episode_recorder.add_action(recorded_action)
+
+                episode_recorder.add_action(action=recorded_action, base_policy_action=base_policy_action)
 
                 # j. Update previous joint state
                 prev_joint = smoothed_joints

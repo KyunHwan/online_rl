@@ -364,6 +364,36 @@ class SharedMemoryManager:
                 else:
                     np.copyto(self._shm_array_dict[key], obs_history[key], casting='no')
 
+    def init_action_chunk_obs_history(
+        self,
+        obs_history
+    ) -> None:
+        with self._lock:
+            # Repeat initial state across history
+            for key in obs_history.keys():
+                if key == 'proprio':
+                    np.copyto(self._shm_array_dict['proprio'], 
+                      np.repeat(obs_history['proprio'].reshape(1, -1),
+                        self._shm_array_dict['proprio'].shape[0],
+                        axis=0,),
+                      casting='no')
+                else:
+                    np.copyto(self._shm_array_dict[key], obs_history[key], casting='no')
+
+            """ Serve init action for RTC Guided Inference """
+            init_vec = np.asarray(
+                INIT_JOINT_LIST[6:] + INIT_JOINT_LIST[:6] + INIT_HAND_LIST[:6] + INIT_HAND_LIST[6:],
+                dtype=np.float32,
+            )
+            # Convert joints to radians, scale fingers
+            init_vec[:12] *= np.pi / 180.0
+            init_vec[12:] *= 0.03
+
+            # Repeat across all rows
+            np.copyto(self._shm_array_dict['action'], 
+                      np.tile(init_vec, (self._shm_array_dict['action'].shape[0], 1)))
+            
+
     def reset(self) -> None:
         """Reset state for new episode.
 

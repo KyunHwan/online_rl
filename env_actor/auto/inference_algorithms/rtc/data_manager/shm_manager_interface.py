@@ -123,6 +123,9 @@ class SharedMemoryInterface:
     ) -> None:
         self.shm_manager.bootstrap_obs_history(obs_history=obs_history)
         
+    def init_action_chunk_obs_history(self, obs_history) -> None:
+        self.shm_manager.init_action_chunk_obs_history(obs_history)
+        
     def reset(self) -> None:
         self.shm_manager.reset()
 

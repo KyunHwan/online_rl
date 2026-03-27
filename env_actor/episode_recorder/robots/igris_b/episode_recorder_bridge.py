@@ -127,12 +127,21 @@ class EpisodeRecorderBridge:
         
         self.episodic_obs_state.append(obs_data_tensordict)
     
-    def add_action(self, action: np.array, control_mode: int = 0):
-        td = TensorDict({
-            'action': torch.from_numpy(action),
-            'control_mode': torch.tensor(control_mode, dtype=torch.int8),
-        }, batch_size=[])
-        self.episodic_action.append(td)
+    def add_action(self, action: np.array, base_policy_action: np.array | None = None, control_mode: int = 0):
+        if base_policy_action is None:
+            td = TensorDict({
+                'action': torch.from_numpy(action),
+                'control_mode': torch.tensor(control_mode, dtype=torch.int8),
+            }, batch_size=[])
+            self.episodic_action.append(td)
+        else:
+            td = TensorDict({
+                'action': torch.from_numpy(action),
+                'base_policy_action': torch.from_numpy(base_policy_action),
+                'control_mode': torch.tensor(control_mode, dtype=torch.int8),
+            }, batch_size=[])
+            self.episodic_action.append(td)
+
     
     def init_train_data_buffer(self, prompt):
         self.episodic_obs_state = []
