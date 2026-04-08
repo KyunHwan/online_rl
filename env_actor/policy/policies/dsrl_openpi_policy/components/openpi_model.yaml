@@ -7,7 +7,7 @@ schema_version: 1
 params:
   train_config_name: "pi05_igris"
   ckpt_dir: "/home/robros/Projects/robros_vla_inference_engine/openpi_film/checkpoints/pi05_igris/pi05_igris_b_pnp_v3.3.3/cut1.2_15000"
-  default_prompt: "Use the left hand to pick up the socks and place it into the box."
+  default_prompt: "Use the right hand to pick up the socks and place it into the box."
   action_dim: 24
   action_horizon: 50
   num_inference_steps: 10
