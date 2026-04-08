@@ -8,7 +8,7 @@ params:
   proprio_key: 'proprio'
   depth_data_keys: []
   img_data_keys: ['head', 'left', 'right']
-  input_img_channel: 1024
+  input_img_channel: 512
   input_depth_channel: 1024
   output_img_channel: 24
   output_depth_channel: 24

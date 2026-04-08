@@ -4,7 +4,7 @@ schema_version: 1
 # image resolution used during training. Set to the value from training config.
 
 params:
-  input_dim: 49584
+  input_dim: 6960
   action_chunk_size: 50
   action_dim: 32
   num_layers: 5
