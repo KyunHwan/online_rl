@@ -129,7 +129,7 @@ class EpisodeRecorderBridge:
         
         self.episodic_obs_state.append(obs_data_tensordict)
     
-    def add_action(self, action: np.array, base_policy_action: np.ndarray | None = None, control_mode: int = 0):
+    def add_action(self, action: np.ndarray, base_policy_action: np.ndarray | None = None, control_mode: int = 0):
         if base_policy_action is None:
             td = TensorDict({
                 'action': torch.from_numpy(action),
