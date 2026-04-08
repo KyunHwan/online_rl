@@ -1,0 +1,60 @@
+schema_version: 1
+
+# Monolithic residual actor: Resnet34Group + ResidualActorPreprocessor + MLP + Tanh.
+# Inputs: state dict {head, left, right, head_depth (opt), proprio} and action tensor.
+# Output: action residuals (batch, action_dim).
+#
+# input_dim = sum of all flattened preprocessor outputs:
+#   head:    output_img_channel * H' * W' = 24 * 8 * 10 = 1920  (ResNet34, 240x320 input)
+#   left:                                 = 24 * 8 * 10 = 1920
+#   right:                                = 24 * 8 * 10 = 1920
+#   proprio: 1 * obs_dim                  = 1 * 24       = 24
+#   action:  1 * action_dim              = 1 * 24       = 24
+#   total:                                              = 5808
+
+params:
+  img_resize: true
+  action_key: 'action'
+  proprio_key: 'proprio'
+  depth_data_keys: []
+  img_data_keys: ['head', 'left', 'right']
+  input_img_channel: 512
+  input_depth_channel: 1024
+  output_img_channel: 24
+  output_depth_channel: 24
+  input_dim: 5808
+  action_dim: 24
+  num_layers: 3
+  num_hidden_dim: 2048
+  dropout: 0.0
+  init_method: 'xavier'
+
+model:
+  graph:
+    inputs: [state, action]
+    modules:
+      actor:
+        _type_: resfit_residual_actor
+        img_resize: ${params.img_resize}
+        action_key: ${params.action_key}
+        proprio_key: ${params.proprio_key}
+        depth_data_keys: ${params.depth_data_keys}
+        img_data_keys: ${params.img_data_keys}
+        input_img_channel: ${params.input_img_channel}
+        input_depth_channel: ${params.input_depth_channel}
+        output_img_channel: ${params.output_img_channel}
+        output_depth_channel: ${params.output_depth_channel}
+        input_dim: ${params.input_dim}
+        action_dim: ${params.action_dim}
+        num_layers: ${params.num_layers}
+        num_hidden_dim: ${params.num_hidden_dim}
+        dropout: ${params.dropout}
+        init_method: ${params.init_method}
+    nodes:
+      - name: action_residual
+        call: module:actor
+        kwargs:
+          state: $state
+          action: $action
+    outputs: [$action_residual]
+    return: single

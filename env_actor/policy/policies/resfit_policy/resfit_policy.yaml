@@ -1,0 +1,9 @@
+model:
+  component_config_paths:
+    resfit_residual_actor: components/resfit_residual_actor.yaml
+
+policy:
+  type: resfit_policy
+  params:
+    checkpoint_path: null
+    obs_proprio_history: 1

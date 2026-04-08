@@ -110,6 +110,7 @@ def start_control(
         print("Starting control loop...")
         episode = -1
 
+        residual_policy_updated = False
         while True:
             if use_residual_rl:
                 current_weights = ray.get(policy_state_manager_handle.get_state.remote())
@@ -120,6 +121,7 @@ def start_control(
                             missing, unexpected = load_state_dict_cpu_into_module(residual_policy.components[model_name], 
                                                                                 current_weights[model_name], 
                                                                                 strict=True)
+                            residual_policy_updated = True
                             print(f"{model_name} weights updated")
                     print("Policy weights updated successfully")
 
@@ -146,7 +148,10 @@ def start_control(
                 sub_eps = episode_recorder.serve_train_data_buffer(episode)
                 for sub_ep in sub_eps:
                     sub_ep_data_ref = ray.put(sub_ep)
-                    episode_queue_handle.put(sub_ep_data_ref, block=True)
+                    try:
+                        episode_queue_handle.put(sub_ep_data_ref, block=True, timeout=30)
+                    except Exception:
+                        print(f"Warning: Episode queue full, dropping sub-episode from episode {episode}")
 
             # Initialize new episode
             episode_recorder.init_train_data_buffer()
@@ -191,17 +196,21 @@ def start_control(
                 if use_residual_rl: 
                     base_policy_action = action.copy()
                     with torch.inference_mode(), torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-                        action = residual_policy.inference(base_policy_action, obs_data) + base_policy_action
+                        if not residual_policy_updated:
+                            residual_action = np.random.uniform(-0.05, 0.05, size=base_policy_action.shape)
+                        else:
+                            residual_action = residual_policy.inference(base_policy_action, obs_data)
+                        action = residual_action + base_policy_action
                 
                 # h. Publish action to robot (includes slew-rate limiting)
                 smoothed_joints, fingers = controller_interface.publish_action(action, prev_joint)
 
-                recorded_action = np.concatenate([
-                    np.concatenate([smoothed_joints[6:], smoothed_joints[:6]]),
-                    fingers,
-                ])
+                # recorded_action = np.concatenate([
+                #     np.concatenate([smoothed_joints[6:], smoothed_joints[:6]]),
+                #     fingers,
+                # ])
 
-                episode_recorder.add_action(action=recorded_action, base_policy_action=base_policy_action)
+                episode_recorder.add_action(action=action, base_policy_action=base_policy_action)
 
                 # j. Update previous joint state
                 prev_joint = smoothed_joints

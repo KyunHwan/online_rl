@@ -19,7 +19,7 @@ from ray.util.queue import Queue as RayQueue
 from ray.train.torch import TorchTrainer
 from ray.train import ScalingConfig
 
-from data_bridge.replay_buffer import ReplayBufferActor
+from data_bridge.resfit_replay_buffer import ResfitReplayBufferActor
 from data_bridge.state_manager import StateManagerActor
 
 from trainer.trainer.online_trainer import train_func
@@ -83,8 +83,12 @@ def start_online_rl(train_config_path,
                                                          name="policy_state_manager").remote()
         # norm_stats_state_manager = StateManagerActor.options(resources={"training_pc": 1},
         #                                                    name="norm_stats_state_manager").remote()
-        replay_buffer = ReplayBufferActor.options(resources={"training_pc": 1},
-                                                  name="replay_buffer").remote()
+        replay_buffer = ResfitReplayBufferActor.options(resources={"training_pc": 1},
+                                                       name="replay_buffer").remote(
+            action_horizon=4,
+            reward_horizon=3,
+            obs_subsample_step=3,
+        )
 
         # Environment Actor
         # Load RuntimeParams to get dimensions for SharedMemory
@@ -142,6 +146,7 @@ def start_online_rl(train_config_path,
                                     replay_buffer_actor=replay_buffer,
                                     img_frame_key='head',
                                     reward_key='reward')
+            labeler.start.remote()
             
         else:
             from data_labeler.auto.auto_reward_labeler import AutoRewardLabelerActor as RewardLabeler

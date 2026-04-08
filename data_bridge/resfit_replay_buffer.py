@@ -5,7 +5,7 @@ from torchrl.data import TensorDictReplayBuffer, LazyMemmapStorage, SliceSampler
 
 
 @ray.remote
-class ReplayBufferActor:
+class ResfitReplayBufferActor:
     def __init__(
         self,
         capacity=10_000_000,
@@ -16,11 +16,10 @@ class ReplayBufferActor:
         action_key: str = "action",
         image_keys=("head", "left", "right"),
 
-        # --- chunking params (LeRobot-like) ---
+        # --- chunking params (resfit-style) ---
         action_horizon: int = 50,
-        obs_proprio_history: int = 50,
-        obs_images_history: int = 1,
-        chunking_mode: str = "lerobot_qchunk",   # "classic" | "lerobot_qchunk"
+        reward_horizon: int = 1,
+        obs_subsample_step: int = 3,
 
         # SliceSampler settings
         strict_length: bool = True,
@@ -37,9 +36,8 @@ class ReplayBufferActor:
         self.action_offsets, self.reward_offsets, self.proprio_offsets, self.image_offsets = \
             self._build_offsets(
                 action_horizon=action_horizon,
-                obs_proprio_history=obs_proprio_history,
-                obs_images_history=obs_images_history,
-                mode=chunking_mode,
+                reward_horizon=reward_horizon,
+                obs_subsample_step=obs_subsample_step,
             )
 
         # ---- 2) Compute window length + anchor index ----
@@ -54,7 +52,6 @@ class ReplayBufferActor:
             scratch_dir="tmp/online_rl_auto_data",
         )
 
-        # SliceSampler: batch-size must be divisible by slice_len. :contentReference[oaicite:1]{index=1}
         self.sampler = SliceSampler(
             slice_len=self.episode_slice_len,
             end_key=("next", "done"),
@@ -74,39 +71,19 @@ class ReplayBufferActor:
     # --------------------------
     # offset + window utilities
     # --------------------------
-    def _build_offsets(self, action_horizon, obs_proprio_history, obs_images_history, mode: str):
-        if mode == "classic":
-            # Actions: future horizon
-            action_offsets = torch.arange(0, action_horizon, dtype=torch.long)
-            reward_offsets = torch.arange(0, action_horizon, dtype=torch.long)
+    def _build_offsets(self, action_horizon, reward_horizon, obs_subsample_step):
+        # Actions: from 0 (current) up to (horizon-1) steps in the future
+        action_offsets = torch.arange(0, action_horizon, dtype=torch.long)
 
-            # Proprio: past history (including current)
-            # e.g., H=3 -> [-2, -1, 0]
-            # proprio_offsets = torch.arange(-(obs_proprio_history - 1), 1, dtype=torch.long)
+        # Rewards: separate horizon
+        reward_offsets = torch.arange(0, reward_horizon, dtype=torch.long)
 
-            # Proprio: past history (including current)
-            # e.g., H=3 -> [0, -1, -2]
-            proprio_offsets = torch.arange(0, -obs_proprio_history, -1, dtype=torch.long)
+        # Observations: subsampled within action horizon, stepping by obs_subsample_step
+        # e.g., action_horizon=50, step=3 -> [49, 46, 43, ..., 1]
+        proprio_offsets = torch.arange(action_horizon - 1, -1, -obs_subsample_step, dtype=torch.long)
 
-            # Images: past history (including current)
-            # image_offsets = torch.arange(-(obs_images_history - 1), 1, dtype=torch.long)
-
-            image_offsets = torch.arange(0, -obs_proprio_history * obs_images_history, -obs_proprio_history, dtype=torch.long)
-
-        elif mode == "lerobot_qchunk":
-            # Match the integer ranges in your factory (since timestamps = offset * dt)
-            action_offsets = torch.arange(0, action_horizon, dtype=torch.long)
-            reward_offsets = torch.arange(0, action_horizon, dtype=torch.long)
-
-            # e.g., H=2 -> [2, 1, 0, -1]
-            proprio_offsets = torch.arange(obs_proprio_history, -obs_proprio_history, -1, dtype=torch.long)
-
-            # e.g., H=2 -> [2, 0]  (this matches your exact code)
-            # If you *meant* to use obs_images_history, replace this with something based on that.
-            image_offsets = torch.arange(obs_proprio_history, -1, -obs_proprio_history, dtype=torch.long)
-
-        else:
-            raise ValueError(f"Unknown chunking_mode={mode}. Use 'classic' or 'lerobot_qchunk'.")
+        # Images: same subsampling pattern as proprio
+        image_offsets = torch.arange(action_horizon - 1, -1, -obs_subsample_step, dtype=torch.long)
 
         return action_offsets, reward_offsets, proprio_offsets, image_offsets
 
@@ -144,15 +121,13 @@ class ReplayBufferActor:
         return True
 
     def _sample_windows(self, rb: TensorDictReplayBuffer, num_windows: int) -> TensorDict:
-        # SliceSampler expects total items divisible by slice_len. :contentReference[oaicite:2]{index=2}
         flat = rb.sample(num_windows * self.episode_slice_len)
-        # Some TorchRL versions already return [num_windows, T]; this reshape is safe either way.
         return flat.reshape(num_windows, self.episode_slice_len)
 
     def _pack_lerobot_like(self, window: TensorDict) -> TensorDict:
         """
         Convert [B, T] window -> [B] samples with chunked fields.
-        Keys are returned in a LeRobot-ish naming style so your trainer can be shared.
+        Keys match resfit_lerobot_data.py delta_timestamps structure.
         """
         B = window.batch_size[0]
 
@@ -173,17 +148,18 @@ class ReplayBufferActor:
         if "base_policy_action" in window.keys():
             out["base_policy_action"] = self._gather_time(window, "base_policy_action", self.action_offsets).clone()
 
-        # Proprio history/chunk
-        out["observation.state"] = self._gather_time(window, self.proprio_key, self.proprio_offsets).clone()
+        # Proprio history/chunk — both observation.current and observation.state
+        proprio_data = self._gather_time(window, self.proprio_key, self.proprio_offsets).clone()
+        out["observation.current"] = proprio_data
+        out["observation.state"] = proprio_data
 
-        # Done flags aligned with reward horizon (optional but often useful)
+        # Done flags aligned with reward horizon
         if ("next", "done") in window.keys(True):
             out["labels.done"] = self._gather_time(window, ("next", "done"), self.reward_offsets).clone()
 
-        # Images at desired offsets (only materialize those frames)
+        # Images at subsampled offsets (same pattern as proprio)
         for k in self.image_keys:
             if k in window.keys():
-                # Map your stored keys -> LeRobot-ish camera names if you want
                 cam_name = {
                     "head": "cam_head",
                     "left": "cam_left",
@@ -210,75 +186,3 @@ class ReplayBufferActor:
         a = self._sample_and_pack(self.buffer, bs)
         b = self._sample_and_pack(self.hil_buffer, bs)
         return TensorDict.cat([a, b], dim=0)
-
-# @ray.remote
-# class ReplayBufferActor:
-#     def __init__(self, slice_len: int, capacity=10_000_000, use_hil_buffer: bool=False):
-#         # LazyMemmapStorage is the key. It maps data to disk instantly.
-#         self.storage = LazyMemmapStorage(
-#             max_size=capacity, 
-#             scratch_dir="tmp/online_rl_auto_data",
-#         )
-
-#         self.episode_slice_len = slice_len
-#         self.sampler = SliceSampler(
-#             slice_len=self.episode_slice_len,
-#             #traj_key="episode",
-#             end_key=("next", "done"), # default in SliceSampler; set to your "done" location
-#             #truncated_key=("next", "_slice_truncated"),
-#             strict_length=True, # drop episodes shorter than SLICE_LEN
-#             compile=True
-#         )
-
-#         self.buffer = TensorDictReplayBuffer(
-#             storage=self.storage,
-#             sampler=self.sampler
-#         )
-
-#         self.use_hil_buffer = use_hil_buffer
-#         if self.use_hil_buffer:
-#             self.hil_storage = LazyMemmapStorage(
-#                 max_size=capacity, 
-#                 scratch_dir="tmp/online_rl_hil_data",
-#             )
-#             self.hil_buffer = TensorDictReplayBuffer(
-#                 storage=self.hil_storage,
-#                 sampler=self.sampler
-#             )
-            
-#     def size(self):
-#         if self.use_hil_buffer:
-#             return len(self.buffer) + len(self.hil_buffer)
-#         else:
-#             return len(self.buffer)
-
-#     def add(self, episode_tensordict, separate_key: str = 'control_mode'):
-#         """
-#         Receives a TensorDict (living in Ray Shared RAM), 
-#         writes it to Disk, and releases the RAM reference.
-#         """
-#         # .extend() writes to the memmap file on disk
-#         if not self.use_hil_buffer:
-#             self.buffer.extend(episode_tensordict)
-#         else:
-#             if episode_tensordict[separate_key][0].item() == 0:
-#                 self.buffer.extend(episode_tensordict)
-#             else:
-#                 self.hil_buffer.extend(episode_tensordict)
-        
-#         # Explicitly return True to signal completion
-#         return True
-
-#     def sample(self, batch_size):
-#         # Reads from Disk -> RAM for the trainer
-#         if not self.use_hil_buffer:
-#             batch = self.buffer.sample(batch_size * self.episode_slice_len)
-#             return batch.reshape(batch_size, self.episode_slice_len)
-#         else:
-#             bs = batch_size // 2
-#             batch = self.buffer.sample(bs * self.episode_slice_len).reshape(bs, self.episode_slice_len)
-#             hil_batch = self.hil_buffer.sample(bs * self.episode_slice_len).reshape(bs, self.episode_slice_len)
-#             return torch.cat([batch, hil_batch], dim=0)
-
-        
-    

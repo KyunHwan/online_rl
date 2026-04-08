@@ -1,5 +1,5 @@
 import tensordict
-from tensordict import TensorDict
+from tensordict import TensorDict, NonTensorData
 import numpy as np
 import torch
 import copy
@@ -81,10 +81,12 @@ class EpisodeRecorderBridge:
         """
         Returns a tensordict for SliceSampler replay buffer
         """
+        task = self.prompt if self.prompt is not None else "pick and place"
         train_data = [TensorDict({
             "episode": torch.tensor(episode_id, dtype=torch.int64),
             "reward": torch.zeros(1).squeeze(),
             "task_index": torch.ones(1) * 2,
+            "task": NonTensorData(task),
             ("next", "done"): torch.zeros(1, dtype=torch.bool)
         }) for i in range(len(self.episodic_obs_state))]
         train_data = torch.stack(train_data, dim=0)
