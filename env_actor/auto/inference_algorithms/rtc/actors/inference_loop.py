@@ -109,7 +109,7 @@ def start_inference(
                     print("Policy weights updated successfully")
 
             # Signal ready for new episode
-            print("Signaling inference ready...")
+            #print("Signaling inference ready...")
             shm_manager.set_inference_ready()
 
             while True:  # Inner loop - inference iterations within episode
@@ -117,11 +117,11 @@ def start_inference(
                 result = shm_manager.wait_for_min_actions(min_num_actions_executed)
 
                 if result == 'stop':
-                    print("Stop event received, exiting inference loop")
+                    #print("Stop event received, exiting inference loop")
                     return  # Exit completely
 
                 if result == 'episode_complete':
-                    print("Episode complete, waiting for next episode")
+                    #print("Episode complete, waiting for next episode")
                     break  # Exit inner loop, continue to outer loop
 
                 # result == 'min_actions' - proceed with inference
