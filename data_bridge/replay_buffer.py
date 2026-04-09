@@ -24,7 +24,7 @@ class ReplayBufferActor:
 
         # SliceSampler settings
         strict_length: bool = True,
-        compile: bool = True,
+        compile: bool = False,
     ):
         self.proprio_key = proprio_key
         self.reward_key = reward_key
