@@ -1,3 +1,6 @@
+import os
+import shutil
+
 import ray
 import torch
 from tensordict import TensorDict
@@ -48,10 +51,15 @@ class ReplayBufferActor:
                                                                    self.proprio_offsets,
                                                                    self.image_offsets)
 
-        # ---- Storage ----
+        # ---- Storage (clean stale memmap files from previous runs) ----
+        for d in ["/tmp/online_rl_auto_data", "/tmp/online_rl_hil_data"]:
+            if os.path.exists(d):
+                shutil.rmtree(d)
+
         self.storage = LazyMemmapStorage(
             max_size=capacity,
-            scratch_dir="tmp/online_rl_auto_data",
+            scratch_dir="/tmp/online_rl_auto_data",
+            existsok=True,
         )
 
         # SliceSampler: batch-size must be divisible by slice_len. :contentReference[oaicite:1]{index=1}
@@ -67,7 +75,8 @@ class ReplayBufferActor:
         if self.use_hil_buffer:
             self.hil_storage = LazyMemmapStorage(
                 max_size=capacity,
-                scratch_dir="tmp/online_rl_hil_data",
+                scratch_dir="/tmp/online_rl_hil_data",
+                existsok=True,
             )
             self.hil_buffer = TensorDictReplayBuffer(storage=self.hil_storage, sampler=self.sampler)
 
