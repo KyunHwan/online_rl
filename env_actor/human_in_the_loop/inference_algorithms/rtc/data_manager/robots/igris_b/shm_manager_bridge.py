@@ -24,7 +24,7 @@ from env_actor.runtime_settings_configs.robots.igris_b.init_params import (
 import torch
 import numpy as np
 
-from ...inference_engine_utils.max_deque import MaxDeque
+from env_actor.auto.inference_algorithms.rtc.data_manager.utils.max_deque import MaxDeque
 
 from multiprocessing.synchronize import Condition as ConditionType
 from multiprocessing.synchronize import Event as EventType
@@ -154,7 +154,6 @@ class SharedMemoryManager:
                     or self._num_control_iters.value >= min_actions
                 )
             )
-
             if self._stop_event.is_set():
                 return 'stop'
             if self._episode_complete_event.is_set():
@@ -180,9 +179,8 @@ class SharedMemoryManager:
 
         Called by InferenceActor after policy loading and CUDA warmup.
         """
-        with self._lock:
-            self._inference_ready_flag.value = True
         with self._inference_ready_cond:
+            self._inference_ready_flag.value = True
             self._inference_ready_cond.notify_all()
     
     def set_inference_not_ready(self) -> None:
@@ -190,9 +188,8 @@ class SharedMemoryManager:
 
         Called by InferenceActor before policy loading and CUDA warmup.
         """
-        with self._lock:
-            self._inference_ready_flag.value = False
         with self._inference_ready_cond:
+            self._inference_ready_flag.value = False
             self._inference_ready_cond.notify_all()
 
     def signal_episode_complete(self) -> None:
@@ -294,7 +291,7 @@ class SharedMemoryManager:
                     np.copyto(self._shm_array_dict[key][0], obs[key], casting='no')
                 else:
                     np.copyto(self._shm_array_dict[key], obs[key], casting='no')
-            action_idx = min(self._num_control_iters.value - 1, action_chunk_size - 1)
+            action_idx = max(0, min(self._num_control_iters.value - 1, action_chunk_size - 1))
             action = self._shm_array_dict['action'][action_idx].copy()
             
             self.notify_step()
@@ -314,7 +311,7 @@ class SharedMemoryManager:
         """
         with self._lock:
             if len(action_chunk.shape) == 3:
-                action_chunk = action_chunk.squeeze(0) 
+                action_chunk = action_chunk.squeeze(0)
             if isinstance(action_chunk, torch.Tensor):
                 action_chunk = action_chunk.cpu().numpy()
             np.copyto(self._shm_array_dict['action'], action_chunk.astype(np.float32, copy=False), casting='no')
@@ -366,6 +363,36 @@ class SharedMemoryManager:
                       casting='no')
                 else:
                     np.copyto(self._shm_array_dict[key], obs_history[key], casting='no')
+
+    def init_action_chunk_obs_history(
+        self,
+        obs_history
+    ) -> None:
+        with self._lock:
+            # Repeat initial state across history
+            for key in obs_history.keys():
+                if key == 'proprio':
+                    np.copyto(self._shm_array_dict['proprio'], 
+                      np.repeat(obs_history['proprio'].reshape(1, -1),
+                        self._shm_array_dict['proprio'].shape[0],
+                        axis=0,),
+                      casting='no')
+                else:
+                    np.copyto(self._shm_array_dict[key], obs_history[key], casting='no')
+
+            """ Serve init action for RTC Guided Inference """
+            init_vec = np.asarray(
+                INIT_JOINT_LIST[6:] + INIT_JOINT_LIST[:6] + INIT_HAND_LIST[:6] + INIT_HAND_LIST[6:],
+                dtype=np.float32,
+            )
+            # Convert joints to radians, scale fingers
+            init_vec[:12] *= np.pi / 180.0
+            init_vec[12:] *= 0.03
+
+            # Repeat across all rows
+            np.copyto(self._shm_array_dict['action'], 
+                      np.tile(init_vec, (self._shm_array_dict['action'].shape[0], 1)))
+            
 
     def reset(self) -> None:
         """Reset state for new episode.

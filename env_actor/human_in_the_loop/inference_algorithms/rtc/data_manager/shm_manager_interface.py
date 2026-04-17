@@ -11,6 +11,8 @@ from multiprocessing.synchronize import Condition as ConditionType
 from multiprocessing.synchronize import Event as EventType
 from multiprocessing.synchronize import RLock as RLockType
 
+
+
 class SharedMemoryInterface:
     def __init__(self, 
                  robot: str,
@@ -24,9 +26,9 @@ class SharedMemoryInterface:
                  inference_ready_flag: Value,
                  is_creator: bool = False,):
         if robot == "igris_b":
-            from .robots.igris_b.shm_manager_bridge import SharedMemoryManager
+            from env_actor.auto.inference_algorithms.rtc.data_manager.robots.igris_b.shm_manager_bridge import SharedMemoryManager
         elif robot == "igris_c":
-            from .robots.igris_c.shm_manager_bridge import SharedMemoryManager
+            from env_actor.auto.inference_algorithms.rtc.data_manager.robots.igris_c.shm_manager_bridge import SharedMemoryManager
         self.shm_manager = SharedMemoryManager.attach_from_specs(
             shm_specs=shm_specs,
             lock=lock,
@@ -121,6 +123,9 @@ class SharedMemoryInterface:
     ) -> None:
         self.shm_manager.bootstrap_obs_history(obs_history=obs_history)
         
+    def init_action_chunk_obs_history(self, obs_history) -> None:
+        self.shm_manager.init_action_chunk_obs_history(obs_history)
+        
     def reset(self) -> None:
         self.shm_manager.reset()
 
@@ -136,4 +141,3 @@ class SharedMemoryInterface:
 
     def cleanup(self) -> None:
         self.shm_manager.cleanup()
-        
