@@ -16,7 +16,7 @@ class IOHandler(Node):
         self.listener = None
         self.is_running = False
         
-        self.declare_parameter('robot_id', 'cashy')
+        self.declare_parameter('robot_id', 'packy')
         self.robot_id = self.get_parameter('robot_id').value
         
         self.publisher_ = self.create_publisher(String, f'/igris_b/{self.robot_id}/io_event', 10)
