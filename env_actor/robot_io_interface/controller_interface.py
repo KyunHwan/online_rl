@@ -12,6 +12,10 @@ class ControllerInterface:
                                                   inference_runtime_topics_config=inference_runtime_topics_config,)
 
     @property
+    def ros_node(self):
+        return self.controller_bridge.ros_node
+
+    @property
     def DT(self):
         return self.controller_bridge.DT
     

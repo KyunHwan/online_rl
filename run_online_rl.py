@@ -38,7 +38,7 @@ def run_training(train_config_path: str):
     print("Running TorchTrainer...")
     # Distributed training
     dist_train_setting_config = ScalingConfig(
-        num_workers=2,
+        num_workers=1,
         use_gpu=True,
     )
     online_trainer = TorchTrainer(
@@ -61,6 +61,7 @@ def start_online_rl(train_config_path,
                     inference_runtime_params_config,
                     inference_runtime_topics_config,
                     inference_algorithm,
+                    use_human_intervention=False,
                     num_labeler_gpus=4,
                     ):
     # Initialize Ray
@@ -101,7 +102,10 @@ def start_online_rl(train_config_path,
 
         # RTC (Real-Time Action Chunking)
         if inference_algorithm == 'rtc':
-            from env_actor.auto.inference_algorithms.rtc.rtc_actor import RTCActor
+            if use_human_intervention:
+                from env_actor.human_in_the_loop.inference_algorithms.rtc.rtc_actor import RTCActor
+            else:
+                from env_actor.auto.inference_algorithms.rtc.rtc_actor import RTCActor
 
             env_actor = RTCActor.\
                 options(resources={"inference_pc": 1}).\
@@ -116,7 +120,10 @@ def start_online_rl(train_config_path,
                 )
         else:
             # Sequential inference
-            from env_actor.auto.inference_algorithms.sequential.sequential_actor import SequentialActor
+            if use_human_intervention:
+                from env_actor.human_in_the_loop.inference_algorithms.sequential.sequential_actor import SequentialActor
+            else:
+                from env_actor.auto.inference_algorithms.sequential.sequential_actor import SequentialActor
             env_actor = SequentialActor.\
                             options(resources={"inference_pc": 1}, num_cpus=4, num_gpus=1).\
                             remote(
@@ -192,9 +199,12 @@ if __name__ == "__main__":
     parser.add_argument("--residual_policy_yaml", 
                         default="./env_actor/policy/policies/dsrl_openpi_policy/dsrl_openpi_policy.yaml",
                         help="path to the residual policy config .yaml file.")
-    parser.add_argument("--use_residual_rl", 
-                        action="store_true", 
+    parser.add_argument("--use_residual_rl",
+                        action="store_true",
                         help="whether online")
+    parser.add_argument("--use_human_intervention",
+                        action="store_true",
+                        help="enable teleop intervention (master arm + Manus glove + pedal mux)")
     parser.add_argument("--inference_runtime_params_config", 
                         default="./env_actor/runtime_settings_configs/robots/igris_b/inference_runtime_params.json",
                         help="absolute path to the inference runtime params config file.")
@@ -224,5 +234,6 @@ if __name__ == "__main__":
         args.inference_runtime_params_config,
         args.inference_runtime_topics_config,
         args.inference_algorithm,
+        args.use_human_intervention,
         args.num_labeler_gpus,
     )

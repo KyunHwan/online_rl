@@ -49,6 +49,10 @@ class ControllerBridge:
         self.recorder_thread = None
 
     @property
+    def ros_node(self):
+        return self.input_recorder
+
+    @property
     def DT(self):
         return 1.0 / self.runtime_params.HZ
     
