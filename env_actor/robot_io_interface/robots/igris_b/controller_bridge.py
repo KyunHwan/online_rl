@@ -201,5 +201,5 @@ class ControllerBridge:
     def shutdown(self):
         self.executor.shutdown()
         self.input_recorder.destroy_node()
-        rclpy.shutdown()
+        
         

@@ -28,6 +28,7 @@ def start_control(
     policy_state_manager_handle = ray.get_actor("policy_state_manager") if use_residual_rl else None
     episode_queue_handle = cloudpickle.loads(episode_queue_handle_b)
 
+    import rclpy
     import torch
     import time
     import json
@@ -250,3 +251,5 @@ def start_control(
         if 'shm_manager' in locals():
             shm_manager.cleanup()
         controller_interface.shutdown()
+        teleop_provider.shutdown()
+        rclpy.shutdown()

@@ -32,6 +32,7 @@ def start_control(
     import time
     import json
     import numpy as np
+    import rclpy
     
 
     from env_actor.nom_stats_manager.data_normalization_interface import DataNormalizationInterface
@@ -226,3 +227,4 @@ def start_control(
         if 'shm_manager' in locals():
             shm_manager.cleanup()
         controller_interface.shutdown()
+        rclpy.shutdown()
