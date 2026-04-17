@@ -104,7 +104,9 @@ class DxlMasterArm(Node):
         
         if not self.portHandler.setBaudRate(baudrate):
             raise RuntimeError(f"Failed to set baudrate {baudrate}")
-        
+
+        time.sleep(0.1)
+
         self.get_logger().info(f"Successfully opened port {self.port_name} with baudrate {baudrate}")
     
         self.groupSyncRead = GroupSyncRead(self.portHandler, self.packetHandler, ADDR_PRESENT_POSITION, LEN_GROUP_SYNC_READ)
@@ -127,11 +129,28 @@ class DxlMasterArm(Node):
                 raise RuntimeError(f"Failed to add parameter for id {id}")
 
         self.sync_write_led(1,self.all_ids())
+
+        for id in self.all_ids():
+            responded = False
+            for _ in range(3):
+                _, dxl_comm_result, dxl_error = self.packetHandler.ping(self.portHandler, id)
+                if dxl_comm_result == COMM_SUCCESS and dxl_error == 0:
+                    responded = True
+                    break
+                time.sleep(0.02)
+            if not responded:
+                raise RuntimeError(
+                    f"Motor id={id} did not respond to ping at {self.baudrate} bps "
+                    f"— check power/cable/ID"
+                )
+
         self.sync_write_torque(0,self.all_ids())
-                
+
+        self._sync_read_fail_count = 0
+
         # self.joint_target_pub = self.create_publisher(JointState, '/igris_b/target_joints', 100)
-        
-        self.timer=self.create_timer(1/HZ,self.sync_read_position) 
+
+        self.timer=self.create_timer(1/HZ,self.sync_read_position)
     
     @staticmethod
     def normalize(x, interval:tuple):
@@ -150,9 +169,23 @@ class DxlMasterArm(Node):
     def sync_read_position(self):
         dxl_comm_result = self.groupSyncRead.txRxPacket()
         if dxl_comm_result != COMM_SUCCESS:
-            self.get_logger().error(f"Failed to sync read position: {dxl_comm_result}")
-            raise RuntimeError(f"Failed to sync read position: {dxl_comm_result}")
-        
+            self._sync_read_fail_count += 1
+            self.get_logger().warn(
+                f"Sync read RX failure (code {dxl_comm_result}), "
+                f"consecutive={self._sync_read_fail_count}; keeping previous positions"
+            )
+            if self._sync_read_fail_count > 10:
+                missing_ids = [
+                    id for name in self.use_part for id in self.ids[name]
+                    if not self.groupSyncRead.isAvailable(id, ADDR_PRESENT_POSITION, LEN_GROUP_SYNC_READ)
+                ]
+                raise RuntimeError(
+                    f"Sync read position failed for {self._sync_read_fail_count} consecutive "
+                    f"attempts (last code {dxl_comm_result}); unresponsive ids={missing_ids}"
+                )
+            return
+        self._sync_read_fail_count = 0
+
         data_available = True
         
         for name in self.use_part:
