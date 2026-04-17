@@ -40,6 +40,7 @@ def run_training(train_config_path: str):
     dist_train_setting_config = ScalingConfig(
         num_workers=1,
         use_gpu=True,
+        resources_per_worker={"training_pc": 1},
     )
     online_trainer = TorchTrainer(
         train_loop_per_worker=train_func,
