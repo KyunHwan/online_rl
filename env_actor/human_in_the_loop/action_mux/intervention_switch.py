@@ -53,10 +53,8 @@ class PedalInterventionSwitch(InterventionSwitch):
         event = msg.data.strip().strip("'\"")
         with self._lock:
             if event == "$":
-                self._mode = (ControlMode.POLICY
-                              if self._mode == ControlMode.TELEOP
-                              else ControlMode.TELEOP)
-            elif event == "^":
+                self._mode = ControlMode.TELEOP
+            elif event == "#":
                 self._mode = ControlMode.POLICY
 
     def get_control_mode(self) -> ControlMode:
