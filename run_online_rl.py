@@ -138,8 +138,7 @@ def start_online_rl(train_config_path,
         print("running env_actor...")
         env_actor.start.remote()
 
-        print("running training...")
-        train_ref = run_training(train_config_path)
+        # print("running training...")
         # train_ref = run_training.\
         #                 options(resources={"training_pc": 1}).\
         #                 remote(train_config_path)
@@ -173,7 +172,9 @@ def start_online_rl(train_config_path,
                                    reward_key='reward')
                 labeler.start.remote()
 
-        _ = ray.get(train_ref)
+        print("running training...")
+        train_ref = run_training(train_config_path)
+        #_ = ray.get(train_ref)
 
     except Exception as e:
         print(f"Online RL failed with error: {e}")
