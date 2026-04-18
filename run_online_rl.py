@@ -139,9 +139,10 @@ def start_online_rl(train_config_path,
         env_actor.start.remote()
 
         print("running training...")
-        train_ref = run_training.\
-                        options(resources={"training_pc": 1}).\
-                        remote(train_config_path)
+        train_ref = run_training(train_config_path)
+        # train_ref = run_training.\
+        #                 options(resources={"training_pc": 1}).\
+        #                 remote(train_config_path)
         # train_ref = run_training.\
         #                 remote(train_config_path)
 
