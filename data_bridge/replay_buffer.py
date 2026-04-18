@@ -11,7 +11,7 @@ from torchrl.data import TensorDictReplayBuffer, LazyMemmapStorage, SliceSampler
 class ReplayBufferActor:
     def __init__(
         self,
-        capacity=10_000_000,
+        capacity=100_000,
         use_hil_buffer: bool = False,
         # keys as stored by EpisodeRecorderBridge
         proprio_key: str = "proprio",
