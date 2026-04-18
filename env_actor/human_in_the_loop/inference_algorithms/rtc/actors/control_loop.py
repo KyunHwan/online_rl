@@ -216,7 +216,8 @@ def start_control(
 
                 ################################### Teleoperation ###################################
                 action, control_mode = action_mux.select(policy_action)
-                
+                if int(control_mode) == 1: print(f"Control Mode: TELEOP !!!!!!!!!!")
+                if int(control_mode) == 0: print(f"Control Mode: POLICY !!!!!!!!!!")
                 base_policy_action = None
                 if use_residual_rl: 
                     base_policy_action = policy_action.copy()
