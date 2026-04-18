@@ -54,8 +54,10 @@ class PedalInterventionSwitch(InterventionSwitch):
         with self._lock:
             if event == "$":
                 self._mode = ControlMode.TELEOP
+                print("[PedalSwitch] -> TELEOP")
             elif event == "#":
                 self._mode = ControlMode.POLICY
+                print("[PedalSwitch] -> POLICY")
 
     def get_control_mode(self) -> ControlMode:
         with self._lock:
