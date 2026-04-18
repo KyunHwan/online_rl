@@ -36,6 +36,7 @@ class ActionMux:
             if teleop_action is not None:
                 return teleop_action, ControlMode.TELEOP
             # Fallback to policy if teleop data unavailable
+            print("Teleop Action is None !!!")
             return policy_action, ControlMode.POLICY
 
         return policy_action, ControlMode.POLICY
