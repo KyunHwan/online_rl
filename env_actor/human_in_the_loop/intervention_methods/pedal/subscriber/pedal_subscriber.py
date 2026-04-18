@@ -1139,7 +1139,7 @@ def main(args):
         ctrl = EpisodeControl()
         from rclpy.qos import QoSProfile, ReliabilityPolicy
         qos = QoSProfile(
-            reliability=ReliabilityPolicy.BEST_EFFORT,
+            reliability=ReliabilityPolicy.RELIABLE,
             depth=10
         )
         ready_pub = node.create_publisher(
