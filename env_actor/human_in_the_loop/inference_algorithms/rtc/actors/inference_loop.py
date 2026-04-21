@@ -144,3 +144,4 @@ def start_inference(
     finally:
         if 'shm_manager' in locals():
             shm_manager.cleanup()
+            

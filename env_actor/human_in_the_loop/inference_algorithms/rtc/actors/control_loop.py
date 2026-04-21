@@ -100,7 +100,7 @@ def start_control(
         controller_interface.ros_node,
         robot_id=inference_runtime_topics_config["robot_id"],
     )
-    action_mux = ActionMux(teleop_provider, intervention_switch)
+    action_mux = ActionMux(teleop_provider, intervention_switch, robot=robot)
     #####################################################################################
 
     data_normalization_interface = DataNormalizationInterface(robot=robot, data_stats=runtime_params.read_stats_file())
@@ -218,16 +218,18 @@ def start_control(
                 action, control_mode = action_mux.select(policy_action)
                 if int(control_mode) == 1: print(f"Control Mode: TELEOP !!!!!!!!!!")
                 if int(control_mode) == 0: print(f"Control Mode: POLICY !!!!!!!!!!")
+
                 base_policy_action = None
                 if use_residual_rl: 
                     base_policy_action = policy_action.copy()
-                    if int(control_mode) != 1:
+                    if int(control_mode) != 1: # Policy Control Mode
                         with torch.inference_mode(), torch.autocast(device_type="cuda", dtype=torch.bfloat16):
                             if not residual_policy_updated:
-                                residual_action = np.random.uniform(-0.05, 0.05, size=base_policy_action.shape)
+                                #residual_action = np.random.uniform(-0.05, 0.05, size=base_policy_action.shape)
+                                action = base_policy_action
                             else:
                                 residual_action = residual_policy.inference(base_policy_action, obs_data)
-                            action = residual_action + base_policy_action
+                                action = residual_action + base_policy_action
                 
                 # h. Publish action to robot (includes slew-rate limiting)
                 smoothed_joints, fingers = controller_interface.publish_action(action, prev_joint)

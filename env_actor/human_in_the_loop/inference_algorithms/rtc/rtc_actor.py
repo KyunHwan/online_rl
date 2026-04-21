@@ -185,3 +185,4 @@ class RTCActor:
                     resource_tracker.unregister(shm_specs[key]._name, "shared_memory")
                 except Exception:
                     pass
+                
