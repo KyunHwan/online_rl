@@ -94,7 +94,7 @@ def start_control(
     # ActionMux: instant switching between policy and teleop
     teleop_provider = IgrisBTeleopProvider(
         #controller_interface.ros_executor,
-        operator_name='MJ',
+        operator_name='KYJ',
     )
     intervention_switch = PedalInterventionSwitch(
         controller_interface.ros_node,
@@ -213,7 +213,6 @@ def start_control(
                 policy_action = shm_manager.atomic_write_obs_and_increment_get_action(obs=obs_data, 
                                                                                action_chunk_size=runtime_params.action_chunk_size)
                 
-
                 ################################### Teleoperation ###################################
                 action, control_mode = action_mux.select(policy_action)
                 if int(control_mode) == 1: print(f"Control Mode: TELEOP !!!!!!!!!!")
