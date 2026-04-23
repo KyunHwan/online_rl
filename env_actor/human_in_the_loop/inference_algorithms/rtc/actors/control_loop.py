@@ -224,8 +224,8 @@ def start_control(
                     if int(control_mode) != 1: # Policy Control Mode
                         with torch.inference_mode(), torch.autocast(device_type="cuda", dtype=torch.bfloat16):
                             if not residual_policy_updated:
-                                #residual_action = np.random.uniform(-0.05, 0.05, size=base_policy_action.shape)
-                                action = base_policy_action
+                                residual_action = np.random.uniform(-0.08, 0.08, size=base_policy_action.shape)
+                                action = residual_action + base_policy_action
                             else:
                                 residual_action = residual_policy.inference(base_policy_action, obs_data)
                                 action = residual_action + base_policy_action
