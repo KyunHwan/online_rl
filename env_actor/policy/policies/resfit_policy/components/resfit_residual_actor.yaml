@@ -24,7 +24,7 @@ params:
   output_depth_channel: 24
   input_dim: 5808
   action_dim: 24
-  num_layers: 3
+  num_layers: 5
   num_hidden_dim: 2048
   dropout: 0.0
   init_method: 'xavier'
