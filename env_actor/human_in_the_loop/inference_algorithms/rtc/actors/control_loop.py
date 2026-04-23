@@ -94,7 +94,7 @@ def start_control(
     # ActionMux: instant switching between policy and teleop
     teleop_provider = IgrisBTeleopProvider(
         #controller_interface.ros_executor,
-        operator_name='KYJ',
+        operator_name='OKJ',
     )
     intervention_switch = PedalInterventionSwitch(
         controller_interface.ros_node,
