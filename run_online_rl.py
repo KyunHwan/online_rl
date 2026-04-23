@@ -38,7 +38,7 @@ def run_training(train_config_path: str):
     print("Running TorchTrainer...")
     # Distributed training
     dist_train_setting_config = ScalingConfig(
-        num_workers=1,
+        num_workers=2,
         use_gpu=True,
         resources_per_worker={"training_pc": 1},
     )
