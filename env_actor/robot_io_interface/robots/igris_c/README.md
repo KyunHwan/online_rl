@@ -1,134 +1,44 @@
-# IGRIS_C Robot Interface Documentation
+# env_actor/robot_io_interface/robots/igris_c
 
-This directory contains interface stubs and documentation for integrating the IGRIS_C robot platform.
+Robot bridge for the IGRIS_C platform.
 
 ## Status
 
-**Interface Design Only** - Full implementation deferred until hardware specifications are available.
+> **Partial stub.** [`controller_bridge.py`](controller_bridge.py) exists as a skeleton (~80 lines) where every method raises `NotImplementedError`. The directory tree (`utils/`, `__init__.py`) is in place. The matching runtime config files are **missing** (see [../../../runtime_settings_configs/README.md](../../../runtime_settings_configs/README.md#igris_c-status)). Today, `--robot igris_c` crashes at the import of `RuntimeParams` in [run_online_rl.py:92](../../../../run_online_rl.py), before reaching this bridge.
 
-## Overview
+## Files
 
-The IGRIS_C integration follows the same modular pattern as IGRIS_B:
-- `controller_bridge.py`: Robot-specific I/O (ROS2, cameras, action publishing)
-- `data_manager_bridge.py`: State history and normalization management
-- Runtime configuration in `runtime_settings_configs/igris_c/`
+| File | What's there |
+|---|---|
+| [`controller_bridge.py`](controller_bridge.py) | Skeleton class — `__init__` and every method raise `NotImplementedError`. Useful as a template for the required interface (matches [`igris_b/controller_bridge.py`](../igris_b/controller_bridge.py) method-by-method). |
+| [`utils/__init__.py`](utils/__init__.py) | Empty placeholder. The igris_b version under [`../igris_b/utils/`](../igris_b/utils/) holds `camera_utils.py` and `data_dict.py` — the same will be needed here. |
+| [`__init__.py`](__init__.py) | Empty package marker. |
 
-## Required Hardware Specifications
+## Required interface
 
-Before implementing IGRIS_C, the following hardware specifications must be determined:
+The stub `ControllerBridge` must implement, with the same signatures as in [`../igris_b/controller_bridge.py`](../igris_b/controller_bridge.py):
 
-### 1. Robot Kinematic Structure
-- **Number of DOF**: How many joints? (IGRIS_B has 12 arm joints)
-- **Joint Layout**: Dual-arm? Single-arm? Mobile base?
-- **Hand/Gripper**: Number of finger joints? (IGRIS_B has 6 per hand)
-- **Action Dimension**: Total action space dimensionality
+| Method | Returns |
+|---|---|
+| `__init__(runtime_params, inference_runtime_topics_config)` | — |
+| `read_state()` | `dict[str, np.ndarray]` with keys `proprio`, `head`, `left`, `right` |
+| `publish_action(action, prev_joint)` | `(smoothed_joints, fingers)` numpy arrays |
+| `start_state_readers()` | None |
+| `init_robot_position()` | numpy array of joint positions |
+| `recorder_rate_controller()` | rate-controller object (currently only used by Sequential) |
+| `shutdown()` | None |
+| `DT` (property) | float seconds = `1/HZ` |
+| `policy_update_period` (property) | int |
 
-### 2. Proprioceptive State Structure
-- **State Keys**: What observations are available?
-  - Joint positions (left/right)
-  - Joint currents/torques
-  - Hand/finger positions
-  - End-effector poses
-  - Other sensor readings (IMU, force/torque, etc.)
-- **State Dimension**: Total proprioceptive state dimensionality
+## Steps to make `--robot igris_c` actually run
 
-### 3. ROS2 Topic Configuration
-- **Topic Naming Convention**: 
-  - Does IGRIS_C use `/igris_c/{robot_id}/...` pattern?
-  - Or a different naming scheme?
-- **Required Topics**:
-  - Joint state publishers/subscribers
-  - Finger/gripper control topics
-  - Image topics (if camera mounted on robot)
-  - Command topics for action execution
+In rough order:
 
-### 4. Camera System
-- **Camera Names**: What cameras are available? (e.g., head, left, right, wrist)
-- **Device Mapping**: 
-  - V4L2 device paths (e.g., `/dev/igris_c_head_camera`)
-  - Camera API (V4L2, RealSense, custom?)
-- **Resolution and Frame Rate**: Native and target resolutions
-- **Image Processing**: Any robot-specific preprocessing required?
+1. Add the missing runtime-config files (`inference_runtime_params.py`, `inference_runtime_params.json`, `inference_runtime_topics.json`) under [`../../../runtime_settings_configs/robots/igris_c/`](../../../runtime_settings_configs/robots/igris_c/). The JSON values must match igris_c's actual hardware.
+2. Fill in `init_params.py` with `INIT_JOINT_LIST`, `INIT_HAND_LIST`, and `IGRIS_C_STATE_KEYS`.
+3. Implement [`controller_bridge.py`](controller_bridge.py) here — ROS2 publishers/subscribers, camera capture, slew-rate limiting, etc.
+4. Implement the matching bridges in [`../../../nom_stats_manager/`](../../../nom_stats_manager/), [`../../../episode_recorder/`](../../../episode_recorder/), [`../../../auto/inference_algorithms/rtc/data_manager/`](../../../auto/inference_algorithms/rtc/data_manager/), and [`../../../auto/inference_algorithms/sequential/data_manager/`](../../../auto/inference_algorithms/sequential/data_manager/) — see [../../../../docs/07_extending.md](../../../../docs/07_extending.md#recipe-2-add-a-new-robot).
+5. Add `elif robot == "igris_c":` import branches in each interface class.
+6. Add `"igris_c"` to argparse `--robot` choices in [run_online_rl.py](../../../../run_online_rl.py) (already present, but verify).
 
-### 5. Control Interface
-- **Control Frequency**: Target Hz (IGRIS_B uses 20Hz)
-- **Action Format**: How are actions structured?
-  - Joint space vs. task space
-  - Absolute positions vs. deltas
-  - Quaternions vs. Euler angles (if applicable)
-- **Safety Limits**:
-  - Maximum joint velocities
-  - Joint position limits
-  - Slew-rate limiting parameters
-
-## Implementation Checklist
-
-When hardware specs become available, implement in this order:
-
-### Phase 1: Configuration
-- [ ] Define `IGRIS_C_STATE_KEYS` in `init_params.py`
-- [ ] Set `INIT_JOINT` and `INIT_HAND_LIST` initial positions
-- [ ] Create `inference_runtime_settings.json` with topics and field mappings
-- [ ] Implement `RuntimeParams` class with IGRIS_C-specific properties
-
-### Phase 2: Controller Bridge
-- [ ] Implement ROS2 node initialization
-- [ ] Implement `read_state()` for proprioception reading
-- [ ] Implement `publish_action()` for action execution
-- [ ] Implement camera initialization and capture
-- [ ] Add slew-rate limiting with IGRIS_C-specific limits
-- [ ] Implement `_obs_dict_to_np_array()` for state packing
-
-### Phase 3: Data Manager Bridge
-- [ ] Implement observation history buffers
-- [ ] Implement normalization with IGRIS_C stats
-- [ ] Implement `serve_normalized_obs_state()`
-- [ ] Implement `denormalize_action()`
-
-### Phase 4: Testing
-- [ ] Test ROS2 communication with mock topics
-- [ ] Test camera capture and image processing
-- [ ] Validate state dimensionality matches policy expectations
-- [ ] End-to-end integration test with sequential inference engine
-
-## Reference Implementation: IGRIS_B
-
-Use IGRIS_B as a reference template:
-- Controller Bridge: `/env_actor/auto/io_interface/robots/igris_b/controller_bridge.py`
-- Data Manager Bridge: `/env_actor/auto/data_manager/robots/igris_b/data_manager_bridge.py`
-- Runtime Params: `/env_actor/runtime_settings_configs/robots/igris_b/`
-
-### Key Differences to Consider
-
-IGRIS_C may differ from IGRIS_B in:
-1. **State Dimensionality**: Different number of joints or sensors
-2. **Camera Configuration**: Different camera setup or placement
-3. **ROS2 Topics**: Different topic structure or message types
-4. **Action Space**: Different control interface or action format
-5. **Safety Constraints**: Different joint limits or velocity constraints
-
-## Example: Adapting from IGRIS_B
-
-If IGRIS_C is similar to IGRIS_B but with different joint counts:
-
-```python
-# init_params.py
-import numpy as np
-
-# TODO: Update based on IGRIS_C hardware
-INIT_JOINT_LIST = [...]  # Initial joint positions in degrees
-INIT_JOINT = np.array(INIT_JOINT_LIST, dtype=np.float32) * np.pi / 180.0
-
-# TODO: Define IGRIS_C state observation keys
-IGRIS_C_STATE_KEYS = [
-    "/observation/joint_pos/...",
-    # Add all observation keys
-]
-```
-
-## Contact
-
-For questions about IGRIS_C integration or to provide hardware specifications:
-- Document specifications in this directory
-- Update the implementation checklist as components are completed
-- Reference the IGRIS_B implementation for guidance
+Use [`../igris_b/`](../igris_b/) as the reference. The interfaces dispatch by string so the bridge's method names must match exactly.

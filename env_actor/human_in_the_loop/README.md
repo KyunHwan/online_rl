@@ -1,6 +1,12 @@
 # env_actor/human_in_the_loop
 
-Human-guided inference with teleoperation and intervention capabilities. This module mirrors the structure of [`auto/`](../auto/) but adds a human intervention layer: an operator can take over control of the robot in real time, and the system records both autonomous and human-guided actions.
+Human-guided inference with teleoperation and intervention capabilities. This module is intended to mirror the structure of [`auto/`](../auto/) but adds a human intervention layer: an operator would take over control of the robot in real time, and the system would record both autonomous and human-guided actions.
+
+## Status
+
+**Not currently wired into [run_online_rl.py](../../run_online_rl.py).** No file in this subtree is imported by the live entrypoint. The directory is a parallel scaffolding for a future HIL-aware entrypoint that does not yet exist. The `--human_reward_labeler` flag only swaps the reward labeler — it does **not** activate any code under this directory. See [../../docs/09_troubleshooting.md](../../docs/09_troubleshooting.md#why-isnt-my-pedalteleop-doing-anything-when-i-pass---human_reward_labeler) for the consequences.
+
+Below is what is **present in the directory**, written in the future tense ("would") since none of it runs today.
 
 ## Architecture
 
@@ -38,11 +44,11 @@ Human-guided inference with teleoperation and intervention capabilities. This mo
 
 ### Action Mux
 
-[`action_mux/action_mux.py`](action_mux/action_mux.py) — blends policy-predicted actions with teleoperation actions based on the intervention state.
+[`action_mux/action_mux.py`](action_mux/action_mux.py) — would blend policy-predicted actions with teleoperation actions based on the intervention state.
 
-[`action_mux/intervention_switch.py`](action_mux/intervention_switch.py) — tracks whether the human is currently intervening.
+[`action_mux/intervention_switch.py`](action_mux/intervention_switch.py) — would track whether the human is currently intervening.
 
-[`action_mux/teleop_provider.py`](action_mux/teleop_provider.py) — wraps the teleoperation interface to provide actions in the same format as the policy.
+[`action_mux/teleop_provider.py`](action_mux/teleop_provider.py) — would wrap the teleoperation interface to provide actions in the same format as the policy.
 
 ### Teleoperation
 
@@ -75,11 +81,22 @@ Each has its own data manager bridges under `data_manager/robots/`.
 
 ## Comparison with `auto/`
 
-| Aspect | `auto/` | `human_in_the_loop/` |
+| Aspect | `auto/` (live) | `human_in_the_loop/` (scaffolding) |
 |--------|---------|---------------------|
-| Action source | Policy only | Policy + teleoperator (blended) |
-| Intervention | None | Pedal-based switch |
-| Data recording | `episode_recorder` | Records both auto and human actions |
-| Use case | Production online RL | Data collection, safety override |
+| Action source | Policy only | Would blend policy + teleop |
+| Intervention | None | Would use pedal-based switch |
+| Data recording | `episode_recorder` | Would record both auto and human actions |
+| Status in this repo | Active code path | No live caller; needs new entrypoint |
 
-The core policy, normalization, and inference logic are the same. The HIL layer adds the action mux, teleop, and intervention switching on top.
+The core policy, normalization, and inference logic would be shared with `auto/`. The HIL layer would add the action mux, teleop, and intervention switching on top.
+
+## What's missing to make this live
+
+A new entrypoint — e.g. `run_online_rl_hil.py`, **which does not exist in this repo today** — would need to:
+
+1. Import an HIL inference actor from [`inference_algorithms/`](inference_algorithms/) instead of from `env_actor/auto/inference_algorithms/`.
+2. Construct the action mux, teleop provider, and pedal subscriber.
+3. Pass them into the HIL inference actor.
+4. Likely set `use_hil_buffer=True` on `ReplayBufferActor` so HIL-segments are stored separately (see [../../data_bridge/README.md](../../data_bridge/README.md#hil-buffer-routing)).
+
+Until that entrypoint is written, every `.py` under this directory is unreachable from any path that `run_online_rl.py` follows.

@@ -1,6 +1,8 @@
 # env_actor/nom_stats_manager
 
-Data normalization using dataset statistics. This module provides a **numpy-only** interface for normalizing robot observations and denormalizing policy actions. It has no torch dependency.
+Data normalization using dataset statistics. This module provides a **numpy-only** interface for normalizing robot observations and denormalizing policy actions. It has no torch dependency. The folder name is a typo of "norm_stats_manager" preserved for compatibility.
+
+Where this fits: see [../../docs/05_policy_protocol.md](../../docs/05_policy_protocol.md#numpy-in-numpy-out--the-boundary) for why normalization is numpy-only, and [../../docs/08_invariants.md](../../docs/08_invariants.md#the-datanormalizationinterface-uses-only-numpy) for the invariant.
 
 ## How It Fits in the Pipeline
 
@@ -58,9 +60,11 @@ Loaded from a pickle file (path configured in `RuntimeParams.norm_stats_file_pat
 
 | Method | Input | Output |
 |--------|-------|--------|
-| `normalize_state(state)` | dict with `"proprio"` + camera keys | Same dict, normalized in-place |
-| `normalize_action(action)` | dict with `"action"` key | Same dict, normalized in-place |
+| `normalize_state(state)` | dict with `"proprio"` (numpy `(H, D)` or `(D,)`) plus camera keys | Same dict, mutated in place: proprio normalized, cameras divided by 255 |
+| `normalize_action(action)` | numpy array | Normalized numpy array |
 | `denormalize_action(action)` | numpy array | Denormalized numpy array |
+
+`normalize_state` is the one the policies actually call. `normalize_action` is exposed for symmetry but is not on the live inference path.
 
 ## Files
 

@@ -1,6 +1,6 @@
 # env_actor/inference_engine_utils
 
-Utility functions for policy inference, primarily **action inpainting** — the technique used to blend overlapping action chunks for smooth real-time control.
+Utility functions for policy inference, primarily **action inpainting** — the technique used to blend overlapping action chunks for smooth real-time control. See [../../docs/10_glossary.md#action-inpainting](../../docs/10_glossary.md#action-inpainting) for the term.
 
 ## Background
 
