@@ -1,6 +1,8 @@
 # env_actor/episode_recorder
 
-Records observation-action pairs during episodes for use as training data. The recorded data is packaged into TensorDicts and pushed to the episode queue for reward labeling.
+Records observation-action pairs during episodes for use as training data. The recorded data is packaged into [TensorDicts](../../docs/10_glossary.md#tensordict) and pushed to the episode queue for reward labeling.
+
+Where this fits: the control loop calls `add_obs_state` and `add_action` per step, then `serve_train_data_buffer(episode_id)` at episode end. The returned list of sub-episode TensorDicts is then `ray.put`'d into Plasma and enqueued on `episode_queue`. See [../../docs/06_data_flow.md](../../docs/06_data_flow.md#hop-6-episode-end--tensordict--ray-queue).
 
 ## Interface / Bridge Pattern
 
@@ -41,9 +43,13 @@ The control loop (in [`auto/inference_algorithms/rtc/actors/control_loop.py`](..
 
 | File | Purpose |
 |------|---------|
-| [`episode_recorder_interface.py`](episode_recorder_interface.py) | Robot-agnostic interface |
-| [`robots/igris_b/episode_recorder_bridge.py`](robots/igris_b/episode_recorder_bridge.py) | igris_b recording implementation |
-| [`robots/igris_c/episode_recorder_bridge.py`](robots/igris_c/episode_recorder_bridge.py) | igris_c recording implementation |
+| [`episode_recorder_interface.py`](episode_recorder_interface.py) | Robot-agnostic interface; dispatches by string. |
+| [`robots/igris_b/episode_recorder_bridge.py`](robots/igris_b/episode_recorder_bridge.py) | igris_b recording. Splits the timeseries into runs of equal `control_mode` (`torch.unique_consecutive`), producing one sub-episode TensorDict per run with derived episode id `base_id * 10000 + segment_idx`. |
+| [`robots/igris_c/episode_recorder_bridge.py`](robots/igris_c/episode_recorder_bridge.py) | Empty file — stub. |
+
+## Known doc/code drift
+
+The TensorDict produced by `serve_train_data_buffer` includes `task_index` (integer) but not `task` (string). The auto reward labeler expects a `"task"` string key — see [../../data_labeler/README.md#known-issues](../../data_labeler/README.md#known-issues) and [../../docs/09_troubleshooting.md#auto-labeler-cannot-find-task](../../docs/09_troubleshooting.md#auto-labeler-cannot-find-task).
 
 ## Adding a New Robot
 

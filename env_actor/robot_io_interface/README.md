@@ -2,6 +2,8 @@
 
 Hardware abstraction layer for communicating with the robot. Provides a uniform API for reading sensor state and publishing actions, regardless of the underlying robot platform.
 
+Where this fits: the control loop in both inference algorithms ([../auto/inference_algorithms/rtc/actors/control_loop.py](../auto/inference_algorithms/rtc/actors/control_loop.py) and [../auto/inference_algorithms/sequential/sequential_actor.py](../auto/inference_algorithms/sequential/sequential_actor.py)) constructs a `ControllerInterface`, calls `start_state_readers()`, then loops on `read_state()` / `publish_action()`. See [../../docs/06_data_flow.md](../../docs/06_data_flow.md#hop-1-robot-sensor--numpy-state-dict).
+
 ## Interface / Bridge Pattern
 
 [`controller_interface.py`](controller_interface.py) is the robot-agnostic API. It dispatches to a `ControllerBridge` under `robots/<robot>/`:
@@ -48,9 +50,11 @@ ControllerInterface(runtime_params, inference_runtime_topics_config, robot="igri
 
 | File | Purpose |
 |------|---------|
-| [`controller_interface.py`](controller_interface.py) | Robot-agnostic API |
-| [`robots/igris_b/controller_bridge.py`](robots/igris_b/) | igris_b hardware implementation |
-| [`robots/igris_c/controller_bridge.py`](robots/igris_c/) | igris_c hardware implementation |
+| [`controller_interface.py`](controller_interface.py) | Robot-agnostic API; dispatches to per-robot bridge by string. |
+| [`robots/igris_b/controller_bridge.py`](robots/igris_b/controller_bridge.py) | Working igris_b hardware implementation (rclpy + cv2 + V4L2 cameras). |
+| [`robots/igris_b/utils/camera_utils.py`](robots/igris_b/utils/camera_utils.py) | `RBRSCamera` — camera capture helper for `head`/`left`/`right`. |
+| [`robots/igris_b/utils/data_dict.py`](robots/igris_b/utils/data_dict.py) | `GenericRecorder` — builds proprio dict from ROS2 messages per the topics JSON. |
+| [`robots/igris_c/controller_bridge.py`](robots/igris_c/controller_bridge.py) | Stub — `NotImplementedError`. See [`robots/igris_c/README.md`](robots/igris_c/README.md). |
 
 ## Adding a New Robot
 

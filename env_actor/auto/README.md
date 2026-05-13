@@ -1,6 +1,8 @@
 # env_actor/auto
 
-Fully autonomous policy inference — the policy runs on the robot without human intervention. This is the primary inference mode for online RL.
+Fully autonomous policy inference — the policy runs on the robot without human intervention. This is the only inference mode wired into [run_online_rl.py](../../run_online_rl.py) today.
+
+Where this fits: see [../../docs/02_architecture.md](../../docs/02_architecture.md) for the actor graph, and [inference_algorithms/README.md](inference_algorithms/README.md) for the RTC vs Sequential details below in expanded form.
 
 ## Inference Algorithms
 

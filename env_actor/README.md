@@ -39,12 +39,8 @@ All data entering the policy is **numpy arrays**. Torch tensors exist only insid
 
 ## `auto/` vs `human_in_the_loop/`
 
-Both subdirectories implement the same core loop (read state → infer → publish actions) but differ in how actions are produced:
-
-- **`auto/`** — The policy runs autonomously. The control loop reads robot state and publishes policy-predicted actions without human intervention. Used for production online RL.
-- **`human_in_the_loop/`** — Adds a teleoperation layer. A human operator can intervene via a pedal switch, and an action multiplexer blends policy and teleoperator actions. Used for human-guided data collection and safety-critical scenarios.
-
-Both share the same policy, normalization, and robot I/O components.
+- **`auto/`** is what [run_online_rl.py](../run_online_rl.py) actually drives. The policy runs autonomously: the control loop reads robot state and publishes policy-predicted actions without human intervention.
+- **`human_in_the_loop/`** is scaffolding for a future HIL entrypoint that does not exist in the repo today. None of its files are imported by `run_online_rl.py`. Treat it as a parallel template, not as a live subsystem. See [human_in_the_loop/README.md](human_in_the_loop/README.md) for the Status callout and what is needed to activate it. Note that the `--human_reward_labeler` flag only switches the reward labeler — it does **not** activate any HIL inference code.
 
 ## Interface / Bridge Pattern
 
@@ -61,8 +57,4 @@ The interface class dispatches to the correct bridge based on the `robot` argume
 
 ## Invariants
 
-1. **Normalization is inside the policy.** The policy's inference methods receive a `DataNormalizationInterface` and call it internally.
-2. **All data entering the policy is numpy.** No torch tensors cross the policy boundary inward.
-3. **Policy output is numpy.** No torch tensors cross the policy boundary outward.
-4. **Guided inference is inside the policy.** Action inpainting (blending old + new action chunks) happens in `policy.guided_inference()`.
-5. **The normalization manager uses only numpy.** It has no torch dependency.
+The architectural rules — normalization is inside the policy, numpy at the policy boundary, etc. — are documented with the *why* and the *what breaks* in [../docs/08_invariants.md](../docs/08_invariants.md). Read that before extending anything here.
