@@ -2,6 +2,8 @@
 
 `online_rl` is a distributed pipeline that trains a robot manipulation policy from data the same robot is producing right now. A policy runs on the robot, episodes flow into a [reward labeler](docs/10_glossary.md#reward-labeler) and then a replay buffer, a trainer samples from the buffer, and updated weights are pushed back to the running policy — all on a [Ray](docs/10_glossary.md#ray) cluster of three machines. The system exists because supervised pre-training alone does not recover from the distribution shift that real hardware introduces.
 
+> **On the `features/residual_rl` branch?** This branch adds online residual RL on top of the system described below. Start with [docs/residual_rl/README.md](docs/residual_rl/README.md) for branch-specific onboarding — it explains what changed vs `main` and how to run a residual-RL training job.
+
 ## Architecture
 
 ```text
@@ -37,6 +39,7 @@ Each box is a [Ray actor](docs/10_glossary.md#ray-actor) pinned to a machine by 
 | Browse all the docs | [docs/README.md](docs/README.md) |
 | Understand how the training half works | [trainer/docs/README.md](trainer/docs/README.md) |
 | Run training standalone, without the env actor | [trainer/docs/01_getting_started.md](trainer/docs/01_getting_started.md) |
+| Onboard onto the `features/residual_rl` branch | [docs/residual_rl/README.md](docs/residual_rl/README.md) |
 
 ## Repository layout
 

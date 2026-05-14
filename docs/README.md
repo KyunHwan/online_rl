@@ -40,6 +40,14 @@ Every directory inside the outer repo has a local README. Open these when you ar
 - Config: [`env_actor/runtime_settings_configs/`](../env_actor/runtime_settings_configs/README.md)
 - Scaffolding (not currently wired in): [`env_actor/human_in_the_loop/`](../env_actor/human_in_the_loop/README.md)
 
+## Branch-specific docs
+
+These docs apply only when you are on the named branch. If you are on `main`, skip them.
+
+| Branch | Doc set | What's in it |
+|---|---|---|
+| `features/residual_rl` | [residual_rl/README.md](residual_rl/README.md) | Onboarding for the online residual-RL feature branch: what changed vs `main`, the new residual policy and replay buffer, trainer-submodule scaffolding, and how to run a residual-RL training job. |
+
 ## The training half
 
 The trainer is a [git submodule](10_glossary.md#git-submodule) with its own complete doc hierarchy. The outer docs do not duplicate it. For training-specific topics, go straight to [trainer/docs/README.md](../trainer/docs/README.md). The cross-references most relevant to the outer repo are:
