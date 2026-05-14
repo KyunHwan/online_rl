@@ -69,7 +69,7 @@ Add `--use_human_intervention` if you have the master arm + pedal hooked up. See
 
 | Arg | Type | Default in class | Value used by `run_online_rl.py` | Effect |
 |---|---|---|---|---|
-| `capacity` | int | `100_000` | (default) | Maximum number of per-step rows stored in the on-disk memmap. |
+| `capacity` | int | `100_000` | (default) | Maximum number of per-step rows stored in the on-disk memmap. **Reduced from `main`'s `10_000_000`** — `LazyMemmapStorage` pre-allocates the entire memmap on first `add()`, and the larger size stalled the labeler for tens of seconds while ~7 GB of memmap was created on disk. See [03 § main vs features/residual_rl](./03_module_walkthrough.md#main-replay_bufferpy-vs-featuresresidual_rl-resfit_replay_bufferpy). |
 | `use_hil_buffer` | bool | `False` | (default) | If `True`, splits HIL and auto rollouts into two buffers and samples 50/50. Currently unused. |
 | `proprio_key` | str | `"proprio"` | (default) | TensorDict key for proprio history. |
 | `reward_key` | str | `"reward"` | (default) | TensorDict key for per-step reward. |
@@ -79,7 +79,7 @@ Add `--use_human_intervention` if you have the master arm + pedal hooked up. See
 | `reward_horizon` | int | `1` | **`3`** | n-step horizon for TD targets. |
 | `obs_subsample_step` | int | `3` | **`3`** | Stride for proprio/image offsets — `arange(action_horizon-1, -1, -obs_subsample_step)`. With `action_horizon=4` and step `3`, this yields offsets `[3, 0]` for proprio and images. |
 | `strict_length` | bool | `True` | (default) | Drop episodes shorter than the window. |
-| `compile` | bool | `False` | (default) | Whether to torch-compile the SliceSampler. |
+| `compile` | bool | `False` | (default) | Whether to torch-compile the `SliceSampler`. **Turned off from `main`'s `True`** — the compile is deferred until the first `sample()`, so when the first sub-episode arrives the trainer's `sample.remote(...)` call hangs for tens of seconds while torch traces the freshly-materialized memmap shapes. With `compile=False` sampling is eager (slightly slower per call) but startup is immediate, which is what matters during the rollout → labeler → trainer fill-up handshake. See [03 § main vs features/residual_rl](./03_module_walkthrough.md#main-replay_bufferpy-vs-featuresresidual_rl-resfit_replay_bufferpy). |
 
 If you change `action_horizon` or `reward_horizon` here, you must also change them in [`resfit.yaml: data.datamodule.params`](https://github.com/KyunHwan/trainer/blob/3ca051a256c9068f77b556df98f538d9a6185ccf/experiment_training/reinforcement_learning/resfit/online_rl/resfit.yaml#L41-L55) so the offline dataset and the online buffer return the same shapes. The trainer concatenates them with `torch.cat(..., dim=0)` ([online_trainer.py:467-504](https://github.com/KyunHwan/trainer/blob/3ca051a256c9068f77b556df98f538d9a6185ccf/trainer/online_trainer.py#L467-L504)).
 

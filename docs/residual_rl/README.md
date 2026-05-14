@@ -58,7 +58,7 @@ Every file from `git diff --name-status main..features/residual_rl`, with the do
 
 | File | Covering doc(s) |
 |---|---|
-| [data_bridge/resfit_replay_buffer.py](../../data_bridge/resfit_replay_buffer.py) | [03 § data_bridge](./03_module_walkthrough.md#data_bridge), [04 integration](./04_trainer_submodule_changes.md#integration-contract-with-the-parent-repo), [05 buffer args](./05_config_and_hyperparameters.md#replay-buffer-construction-args), [06 flow](./06_data_flow_and_lifecycle.md) |
+| [data_bridge/resfit_replay_buffer.py](../../data_bridge/resfit_replay_buffer.py) | [03 § data_bridge](./03_module_walkthrough.md#data_bridge) + [main vs features/residual_rl side-by-side](./03_module_walkthrough.md#main-replay_bufferpy-vs-featuresresidual_rl-resfit_replay_bufferpy), [04 integration](./04_trainer_submodule_changes.md#integration-contract-with-the-parent-repo), [05 buffer args](./05_config_and_hyperparameters.md#replay-buffer-construction-args), [06 flow](./06_data_flow_and_lifecycle.md) |
 | [env_actor/human_in_the_loop/action_mux/interp_utils/__init__.py](../../env_actor/human_in_the_loop/action_mux/interp_utils/__init__.py) | [03 § action_mux](./03_module_walkthrough.md#env_actorhuman_in_the_loopaction_mux) |
 | [env_actor/human_in_the_loop/action_mux/interp_utils/interp_interface.py](../../env_actor/human_in_the_loop/action_mux/interp_utils/interp_interface.py) | [03 § action_mux — interp_interface.py](./03_module_walkthrough.md#interp_utilsinterp_interfacepy--new) |
 | [env_actor/human_in_the_loop/action_mux/interp_utils/robots/igris_b/__init__.py](../../env_actor/human_in_the_loop/action_mux/interp_utils/robots/igris_b/__init__.py) | [03 § action_mux](./03_module_walkthrough.md#env_actorhuman_in_the_loopaction_mux) |
